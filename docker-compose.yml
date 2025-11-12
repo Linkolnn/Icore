@@ -34,7 +34,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3001
-      MONGODB_URI: mongodb://admin:password123@mongodb:27017/icore?authSource=admin
+      MONGODB_URI: mongodb://mongodb:27017/icore
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: your-super-secret-jwt-key-change-in-production

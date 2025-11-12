@@ -10,9 +10,23 @@ import { WebsocketModule } from './modules/websocket/websocket.module';
 import { WebrtcService } from './modules/webrtc/webrtc.service';
 import { WebrtcModule } from './modules/webrtc/webrtc.module';
 import { EncryptionModule } from './modules/encryption/encryption.module';
+import { MongooseModule } from '@nestjs/mongoose';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports: [AuthModule, UsersModule, MessagesModule, ChatsModule, WebsocketModule, WebrtcModule, EncryptionModule],
+  imports: [
+    ConfigModule.forRoot(),
+    MongooseModule.forRoot(
+      process.env.MONGODB_URI || 'mongodb://mongodb:27017/icore'
+    ),
+    AuthModule, 
+    UsersModule, 
+    MessagesModule, 
+    ChatsModule, 
+    WebsocketModule, 
+    WebrtcModule, 
+    EncryptionModule
+  ],
   controllers: [AppController],
   providers: [AppService, MessagesService, WebrtcService],
 })
