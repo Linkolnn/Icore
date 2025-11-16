@@ -45,8 +45,8 @@
         </div>
       </div>
 
-      <!-- Chat List Placeholder (when not searching) -->
-      <p v-else class="placeholder">Список чатов появится в День 3</p>
+      <!-- Chat List (when not searching) -->
+      <ChatList v-else />
     </div>
 
     <!-- MenuModal -->
@@ -77,15 +77,24 @@
 
 const isMenuOpen = ref(false)
 const usersStore = useUsersStore()
+const chatsStore = useChatsStore()
 const searchQuery = ref('')
 const showResults = ref(false)
 
+/**
+ * Обработка клика на пользователя в результатах поиска
+ * Переходит в preview режим - чат создастся только при отправке первого сообщения
+ */
 function handleUserClick(userId: string) {
-  console.log('User clicked:', userId)
+  // Очищаем поиск
   searchQuery.value = ''
   showResults.value = false
   usersStore.clearSearch()
-  // TODO: Интеграция с чатами (День 3)
+
+  // Переходим в preview режим
+  // chatId = userId пользователя, с которым хотим начать чат
+  // preview=true - флаг preview режима
+  navigateTo(`/chat/${userId}?preview=true`)
 }
 </script>
 
@@ -104,12 +113,10 @@ function handleUserClick(userId: string) {
   width: 100%;
   max-width: 400px;
   background: $bg-primary; // ✅ Единый фон
-  box-shadow: $shadow-block; // ✅ Тень для блока
   display: flex;
   flex-direction: column;
   height: 100vh;
   padding: 10px;
-  border: none; // ✅ НЕТ границ!
 
   @include mobile {
     width: 100vw; // Mobile: на весь экран
@@ -120,7 +127,6 @@ function handleUserClick(userId: string) {
 .chat-list {
   flex: 1;
   overflow-y: auto;
-  padding: 10px;
 
   .placeholder {
     text-align: center;
@@ -137,7 +143,7 @@ function handleUserClick(userId: string) {
 
   &__loading,
   &__empty {
-    padding: 2rem;
+    padding: 10px;
     text-align: center;
     color: $text-secondary;
     @include font-styles(14px, 400, 1.5);
@@ -146,26 +152,26 @@ function handleUserClick(userId: string) {
   &__list {
     display: flex;
     flex-direction: column;
+    padding: 10px 0px;
     gap: 10px;
   }
 }
 
-// ===== CHAT ITEM (по макету chat-component.png) =====
+// ===== CHAT ITEM (User search results - simplified, no duplication) =====
 
 .chat-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: $radius; // 28px
-  background: $bg-primary; // ✅ Единый фон
-  box-shadow: $shadow-block; // ✅ Объём через тень
+  gap: 10px;
+  padding: 10px;
+  border-radius: $radius;
+  background: $bg-primary;
+  box-shadow: $shadow-block;
   @include transition;
   cursor: pointer;
-  border: none; // ✅ НЕТ границ
 
   @include hover {
-    opacity: 0.8; // ✅ Hover через opacity
+    opacity: 0.8;
   }
 
   &__avatar {
@@ -188,14 +194,13 @@ function handleUserClick(userId: string) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 10px;
   }
 
   &__name {
-    margin: 0;
-    @include font-styles(16px, 500, 1.4);
+    @include font-styles(16px, 400, 1.4);
     color: $text-primary;
-    text-transform: uppercase; // По макету заголовок uppercase
+    text-transform: uppercase;
     letter-spacing: 0.5px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -209,7 +214,6 @@ function handleUserClick(userId: string) {
   }
 
   &__message {
-    margin: 0;
     @include font-styles(14px, 400, 1.4);
     color: $text-secondary;
     overflow: hidden;

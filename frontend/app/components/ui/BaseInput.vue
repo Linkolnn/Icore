@@ -4,6 +4,11 @@
       {{ label }}
     </label>
     <div class="base-input__wrapper">
+      <!-- Left action slot (for buttons inside input) -->
+      <div v-if="$slots.leftAction" class="base-input__left-action">
+        <slot name="leftAction" />
+      </div>
+
       <input
         :id="inputId"
         v-model="model"
@@ -12,10 +17,22 @@
         :required="required"
         :disabled="disabled"
         class="base-input__field"
+        :class="{
+          'has-left-action': $slots.leftAction,
+          'has-right-action': $slots.rightAction || $slots.icon
+        }"
         @blur="$emit('blur')"
         @focus="$emit('focus')"
+        @keyup.enter="$emit('enter')"
       />
-      <div v-if="$slots.icon" class="base-input__icon">
+
+      <!-- Right action slot (for buttons inside input) -->
+      <div v-if="$slots.rightAction" class="base-input__right-action">
+        <slot name="rightAction" />
+      </div>
+
+      <!-- Icon slot (non-interactive, for search icon etc) -->
+      <div v-else-if="$slots.icon" class="base-input__icon">
         <slot name="icon" />
       </div>
     </div>
@@ -51,6 +68,7 @@ const emit = defineEmits<{
   'update:modelValue': [value: string]
   'blur': []
   'focus': []
+  'enter': []
 }>()
 
 // v-model двустороннее связывание
@@ -79,20 +97,28 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
   &__wrapper {
     position: relative;
     width: 100%;
+    display: flex;
+    align-items: center;
   }
 
   &__field {
     width: 100%;
-    padding: 12px 14px; // Увеличил для лучшего отображения пиксельного шрифта
-    border: none;
+    padding: 12px 14px;
     border-radius: $radius;
-    background: $bg-primary; // ✅ Единый фон для всех элементов!
+    background: $bg-primary;
     color: $text-primary;
-    box-shadow: $shadow-input; // Официальная тень для input
-    font-size: 16px;
-    font-weight: 400;
-    line-height: 1.5; // Увеличил для правильного отображения placeholder
+    box-shadow: $shadow-input;
+    @include font-styles(16px, 400, 1.5);
     @include transition;
+
+    // Adjust padding when actions are present
+    &.has-left-action {
+      padding-left: 40px;
+    }
+
+    &.has-right-action {
+      padding-right: 40px;
+    }
 
     // Ensure text is always visible
     -webkit-text-fill-color: $text-primary;
@@ -100,7 +126,7 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
 
     &::placeholder {
       color: $text-placeholder;
-      font-size: 16px; // Такой же размер как у основного текста
+      font-size: 16px;
       line-height: 1.5;
     }
 
@@ -115,6 +141,48 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
     }
   }
 
+  // Action buttons (inside input, left or right)
+  &__left-action,
+  &__right-action {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    z-index: 1;
+
+    // Style buttons inside
+    :deep(button) {
+      padding: 0;
+      background: transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      @include transition;
+
+      &:hover {
+        opacity: 0.7;
+      }
+
+      svg {
+        width: 16px;
+        height: 16px;
+        color: $text-secondary;
+      }
+    }
+  }
+
+  &__left-action {
+    left: 10px;
+  }
+
+  &__right-action {
+    right: 10px;
+  }
+
+  // Icon slot (non-interactive, for search icon etc)
   &__icon {
     position: absolute;
     right: 14px;

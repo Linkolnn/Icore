@@ -83,7 +83,8 @@ import { useAuth } from '~/composables/useAuth'
 // Типы: RegisterData из auth.types.ts
 
 definePageMeta({
-  layout: false
+  layout: false,
+  middleware: 'guest'
 })
 
 // ===================================

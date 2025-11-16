@@ -125,14 +125,13 @@ const handleEscape = (e: KeyboardEvent) => {
 
 .menu-dropdown {
   position: absolute;
-  top: 60px; // Под AppHeader (высота header ~50px + gap)
+  top: 88px; // Под AppHeader (высота header ~50px + gap)
   left: 10px; // Отступ от левого края
   width: 280px;
   background: $bg-primary; // ✅ Единый фон
   border-radius: $radius;
   box-shadow: $shadow-block; // ✅ Тень для блока
   overflow: hidden;
-  border: none; // ✅ НЕТ границ!
   z-index: 1000;
 }
 
@@ -142,12 +141,9 @@ const handleEscape = (e: KeyboardEvent) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: $bg-primary;
-
+  padding: 10px 10px 10px 20px;
   .menu-title {
-    margin: 0;
-    @include font-styles(18px, 600, 1.4);
+    @include font-styles(18px, 400, 1.4);
     color: $text-primary;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -158,26 +154,20 @@ const handleEscape = (e: KeyboardEvent) => {
   width: 18px;
   height: 18px;
   color: $text-primary;
-
-  :deep(svg) {
-    width: 100%;
-    height: 100%;
-  }
 }
 
 // ===== NAVIGATION =====
 
 .menu-nav {
-  padding: 8px;
+  padding: 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
 
   &__button {
     width: 100%;
-    padding: 12px 16px;
+    padding: 10px;
     background: transparent;
-    border: none; // ✅ НЕТ границ!
     text-align: left;
     @include font-styles(16px, 400, 1.5);
     color: $text-primary;
@@ -186,7 +176,7 @@ const handleEscape = (e: KeyboardEvent) => {
     @include transition;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 
     @include hover {
       opacity: 0.8; // ✅ Hover через opacity

@@ -81,8 +81,7 @@ defineEmits<{
   }
 
   &__footer {
-    margin-top: 24px;
-    padding-top: 24px;
+    padding-top: 10px;
     text-align: center;
     // ✅ НЕТ границ! Разделение через отступ
   }

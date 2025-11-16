@@ -63,7 +63,8 @@ import { useAuth } from '~/composables/useAuth'
 // Типы: LoginCredentials из auth.types.ts
 
 definePageMeta({
-  layout: false
+  layout: false,
+  middleware: 'guest'
 })
 
 // ===================================

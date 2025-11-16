@@ -2,8 +2,8 @@
   <div id="app">
     <!-- Layout для авторизованных: Sidebar + Content -->
     <div v-if="authStore.isAuthenticated" class="app-layout">
-      <LayoutChatSidebar />
-      <main class="chat-window">
+      <LayoutChatSidebar :class="{ 'hide-on-chat': isOnChatPage }" />
+      <main class="chat-window" :class="{ 'show-on-mobile': isOnChatPage }">
         <NuxtPage />
       </main>
     </div>
@@ -25,7 +25,9 @@
  *
  * Layout применен строго по плану Дня 2:
  * - Desktop (>859px): Sidebar 400px max + Chat Window flex: 1
- * - Mobile (≤859px): Sidebar 100vw, Chat Window скрыт
+ * - Mobile (≤859px):
+ *   - На главной: Sidebar 100vw, Chat Window скрыт
+ *   - На странице чата: Sidebar скрыт, Chat Window 100vw
  *
  * Восстановление сессии происходит в plugins/auth.client.ts
  *
@@ -35,6 +37,12 @@
  */
 
 const authStore = useAuthStore()
+const route = useRoute()
+
+// Определяем, находимся ли мы на странице чата
+const isOnChatPage = computed(() => {
+  return route.path.startsWith('/chat/')
+})
 </script>
 
 <style lang="scss">
@@ -54,17 +62,29 @@ const authStore = useAuthStore()
   overflow: hidden;
   background: $bg-primary;
 
+  // Sidebar
+  aside {
+
+    @include mobile {
+      &.hide-on-chat {
+        display: none; // Скрываем Sidebar на странице чата (мобильный)
+      }
+    }
+  }
+
   .chat-window {
     flex: 1; // Занимает оставшееся пространство
     overflow-y: auto;
     background: $bg-primary;
-
-    @include tablet {
-      display: none; // Скрываем Chat Window на планшетах
-    }
+    @include transition; // Плавный переход
 
     @include mobile {
-      display: none; // Скрываем Chat Window на мобильных
+      display: none; // По умолчанию скрываем на мобильных
+
+      &.show-on-mobile {
+        display: block; // Показываем на странице чата
+        width: 100vw;
+      }
     }
   }
 }

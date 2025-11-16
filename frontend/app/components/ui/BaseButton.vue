@@ -20,7 +20,7 @@
 
 interface Props {
   type?: 'button' | 'submit' | 'reset'
-  variant?: 'primary' | 'secondary' | 'ghost' | 'icon'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'icon' | 'input-icon'
   disabled?: boolean
   loading?: boolean
 }
@@ -43,11 +43,10 @@ defineEmits<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 12px 24px;
-  border: none;
+  padding: 10px 24px;
   border-radius: $radius;
   cursor: pointer;
-  @include font-styles(16px, 500, 1.5);
+  @include font-styles(16px, 400, 1.5);
   @include transition;
   min-width: 120px;
 
@@ -113,19 +112,41 @@ defineEmits<{
     color: $text-primary;
     box-shadow: $shadow-block;
     padding: 10px;
-    min-width: 40px;
-    width: 40px;
-    height: 40px;
+    min-width: 48px;
+    width: 48px;
+    height: 48px;
     border-radius: $radius;
 
     @include hover {
       opacity: 0.8;
     }
 
-    // Иконки внутри должны быть 24x24px
+    // Иконки внутри должны быть 20x20px
     :deep(svg) {
       width: 20px;
       height: 20px;
+    }
+  }
+
+  // Input Icon - маленькая icon-кнопка внутри инпута (28x28px)
+  &--input-icon {
+    background: $bg-primary;
+    color: $text-secondary;
+    box-shadow: $shadow-block;
+    padding: 6px;
+    min-width: 33px;
+    width: 33px;
+    height: 33px;
+    border-radius: $radius;
+
+    @include hover {
+      opacity: 0.8;
+    }
+
+    // Иконки внутри должны быть 16x16px
+    :deep(svg) {
+      width: 16px;
+      height: 16px;
     }
   }
 }

@@ -122,11 +122,6 @@ function handleFocus() {
   width: 24px;
   height: 24px;
   color: $text-primary;
-
-  :deep(svg) {
-    width: 100%;
-    height: 100%;
-  }
 }
 
 // ===== SEARCH WRAPPER =====
@@ -137,7 +132,7 @@ function handleFocus() {
 
   // Переопределяем стили BaseInput для search
   :deep(.base-input__field) {
-    padding: 10px 20px 10px 20px;
+    padding: 12px 20px ;
     background: $bg-primary;
     @include font-styles(14px, 400, 1.5);
   }
@@ -147,11 +142,5 @@ function handleFocus() {
   width: 20px;
   height: 20px;
   color: $text-secondary;
-
-  :deep(svg) {
-    width: 20px;
-    height: 20px;
-    color: $text-secondary;
-  }
 }
 </style>

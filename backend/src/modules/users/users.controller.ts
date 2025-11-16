@@ -4,6 +4,8 @@ import {
   Query,
   UseGuards,
   Request,
+  Param,
+  NotFoundException,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -27,15 +29,32 @@ export class UsersController {
 
   /**
    * GET /users/search?query=john&limit=10&skip=0
-   * 
+   *
    * Поиск пользователей по имени, email или userId
    * Исключает текущего пользователя из результатов
-   * 
+   *
    * Query параметры валидируются через SearchUsersDto
    */
   @Get('search')
   async searchUsers(@Query() searchDto: SearchUsersDto, @Request() req) {
     // req.user добавляется JWT Guard'ом
     return this.usersService.searchUsers(searchDto, req.user._id);
+  }
+
+  /**
+   * GET /users/:id
+   *
+   * Получение информации о пользователя по ID
+   * Используется для preview режима при открытии личного чата
+   *
+   * @param id - ID пользователя
+   */
+  @Get(':id')
+  async getUserById(@Param('id') id: string) {
+    const user = await this.usersService.findById(id);
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+    return user;
   }
 }
