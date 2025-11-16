@@ -43,6 +43,37 @@ export class AuthService {
   ) {}
 
   /**
+   * Генерация уникального userId
+   * Формат: nickname@randomid
+   * Пример: john@a1b2c3d4
+   * 
+   * @param name - имя пользователя
+   * @returns уникальный userId
+   */
+  private async generateUserId(name: string): Promise<string> {
+    // Преобразуем имя в lowercase и убираем пробелы
+    const nickname = name.toLowerCase().replace(/\s+/g, '')
+    
+    // Генерируем случайный ID (8 символов)
+    const randomId = Math.random().toString(36).substring(2, 10)
+    
+    // Формируем userId
+    let userId = `${nickname}@${randomId}`
+    
+    // Проверяем уникальность
+    let existingUser = await this.userModel.findOne({ userId })
+    
+    // Если не уникален, генерируем новый
+    while (existingUser) {
+      const newRandomId = Math.random().toString(36).substring(2, 10)
+      userId = `${nickname}@${newRandomId}`
+      existingUser = await this.userModel.findOne({ userId })
+    }
+    
+    return userId
+  }
+
+  /**
    * Регистрация нового пользователя
    * 
    * ПРОЦЕСС:
@@ -91,11 +122,15 @@ export class AuthService {
     // - Результат: $2b$10$... (60 символов)
     const hashedPassword = await bcrypt.hash(password, 10)
 
+    // 2.5. Генерация уникального userId
+    const userId = await this.generateUserId(name)
+
     // 3. Создание нового пользователя в БД
     const user = new this.userModel({
       name,
       email,
       password: hashedPassword, // Сохраняем ХЕШ, не plain text!
+      userId, // Уникальный ID для поиска
       status: 'offline', // По умолчанию оффлайн
     })
     await user.save()
@@ -112,6 +147,7 @@ export class AuthService {
         _id: user._id,
         name: user.name,
         email: user.email,
+        userId: user.userId,
         avatar: user.avatar,
         status: user.status,
       },
@@ -179,6 +215,7 @@ export class AuthService {
         _id: user._id,
         name: user.name,
         email: user.email,
+        userId: user.userId,
         avatar: user.avatar,
         status: user.status,
       },

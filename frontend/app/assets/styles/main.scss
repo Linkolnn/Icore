@@ -1,10 +1,25 @@
 // ===================================
 // 🎨 MAIN STYLES - ICORE MESSENGER
 // ===================================
+// Переменные и mixins импортируются автоматически через nuxt.config.ts
 
-// Импорты (модульная структура)
-@import './variables';  // Переменные (цвета, тени)
-@import './mixins';     // Mixins (адаптив, transitions, hover)
+// ===================================
+// 🔤 FONTS
+// ===================================
+
+// Кастомный шрифт для заголовков
+@font-face {
+  font-family: '5mal6Lampen';
+  src: url('@/assets/fonts/5mal6Lampen.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+  
+  // Исправление метрик шрифта для правильного вертикального выравнивания
+  ascent-override: 90%;    // Высота над базовой линией
+  descent-override: 40%;   // Глубина под базовой линией
+  line-gap-override: 0%;   // Убираем дополнительный отступ между строками
+}
 
 // ===================================
 // 🔄 RESET & BASE
@@ -17,8 +32,42 @@
 }
 
 body {
-  color: $text-primary;
-  background-color: $bg-primary;
+  color: #FFFFFF;
+  background-color: #212121;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+// ===================================
+// 🔤 TYPOGRAPHY
+// ===================================
+
+// Заголовки используют кастомный шрифт и UPPERCASE
+h1, h2, h3, h4, h5, h6 {
+  font-family: '5mal6Lampen', sans-serif;
+  text-transform: uppercase;
+  color: #FFFFFF;
+  // Отключаем сглаживание для четкого пиксельного эффекта
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  // font-smooth: never;
+  line-height: 1.5; // Увеличиваем для лучшей читаемости
+}
+
+h1 {
+  letter-spacing: 2px;
+}
+
+// Labels, inputs, buttons используют кастомный шрифт
+label,
+input,
+textarea,
+select,
+button {
+  font-family: '5mal6Lampen', sans-serif;
+  // Отключаем сглаживание для четкого пиксельного эффекта
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  font-smooth: never;
 }
 
 // ===================================
@@ -28,11 +77,26 @@ body {
 input,
 textarea,
 select {
-  color: $text-primary;
-  background: $bg-input;
-  box-shadow: $shadow-input; // Официальная тень для input
+  color: #FFFFFF;
+  background: #1a1a1a;
+  // Фиксим line-height для пиксельного шрифта
+  line-height: 1.2;
   
   &::placeholder {
-    color: $text-placeholder;
+    color: #555555;
   }
+}
+
+// ===================================
+// 🧩 UTILITY CLASSES - Переиспользуемые классы
+// ===================================
+// Примечание: Переменные SCSS доступны только в scoped стилях компонентов
+// Здесь используем прямые значения для глобальных стилей
+
+// Контейнер
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
 }

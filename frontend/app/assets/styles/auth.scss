@@ -1,0 +1,46 @@
+// ===================================
+// 🔐 AUTH PAGES - Общие стили для страниц аутентификации
+// ===================================
+// DRY: Переиспользуемые стили для login.vue и register.vue
+// Импортируется автоматически через nuxt.config.ts
+
+// === PAGE LAYOUT ===
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: $bg-primary;
+}
+
+// === ERROR MESSAGE ===
+
+.error-message {
+  padding: 12px 16px;
+  background: rgba(#F44336, 0.1);
+  border: none; // ✅ НЕТ границ!
+  border-radius: $radius;
+  color: #F44336;
+  @include font-styles(14px, 400, 1.5);
+  text-align: center;
+}
+
+// === AUTH LINK ===
+
+.auth-link {
+  @include font-styles(14px, 400, 1.5);
+  color: $text-secondary;
+
+  &__link {
+    color: $accent-primary;
+    text-decoration: none;
+    @include transition;
+
+    @include hover {
+      opacity: 0.8; // ✅ Hover через opacity
+      text-decoration: underline;
+    }
+  }
+}

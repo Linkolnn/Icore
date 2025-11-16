@@ -52,6 +52,20 @@ export class User extends Document {
   email: string
 
   /**
+   * Уникальный ID пользователя для поиска
+   * Формат: nickname@randomid
+   * Пример: john@a1b2c3d4
+   * 
+   * required: true - обязательное поле
+   * unique: true - уникальное значение в БД (индекс)
+   * 
+   * ИСПОЛЬЗОВАНИЕ: Для поиска друзей по ID
+   * Пользователь может изменить nickname часть
+   */
+  @Prop({ required: true, unique: true })
+  userId: string
+
+  /**
    * Хеш пароля (НЕ сам пароль!)
    * required: true - обязательное поле
    * 
@@ -93,6 +107,12 @@ export class User extends Document {
 }
 
 /**
+ * Тип для Mongoose документа User
+ * Комбинирует User класс с Mongoose Document
+ */
+export type UserDocument = User & Document;
+
+/**
  * Экспорт Mongoose схемы
  * 
  * ИСПОЛЬЗОВАНИЕ:
@@ -103,3 +123,15 @@ export class User extends Document {
  * MongooseModule.forFeature([{ name: User.name, schema: UserSchema }])
  */
 export const UserSchema = SchemaFactory.createForClass(User)
+
+/**
+ * MongoDB Indexes для оптимизации поиска
+ * 
+ * Text Index на name, email, userId:
+ * - Ускоряет поиск по тексту
+ * - Поддерживает case-insensitive поиск
+ * - Используется в searchUsers()
+ * 
+ * ВАЖНО: Индексы создаются автоматически при старте приложения
+ */
+UserSchema.index({ name: 'text', email: 'text', userId: 'text' })

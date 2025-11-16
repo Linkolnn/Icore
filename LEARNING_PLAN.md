@@ -22,6 +22,9 @@
 - ❌ НЕ объяснять Options API (не используется)
 - 🎨 Следовать готовому дизайну из макетов
 - 💅 SASS для стилизации компонентов
+- 🏗️ **Семантическая HTML5 верстка** (main, section, article, header, footer)
+- 🧩 **Компонентная архитектура** (переиспользуемые UI компоненты)
+- 📦 **DRY принцип** (нет дублирования кода, типов, стилей)
 
 ---
 
@@ -67,6 +70,12 @@
 - ⚡ Оптимизация производительности
 - 🔌 Слабая связанность модулей
 - 🎯 High cohesion, low coupling
+
+**4. Семантичным (Semantic)**
+- 🏗️ Правильные HTML5 теги (main, section, article)
+- ♿ Доступность (a11y) - label связан с input
+- 🔍 SEO оптимизация
+- 📖 Читаемый код - структура понятна без CSS
 
 ---
 
@@ -166,12 +175,13 @@ defineEmits<{ send: [text: string] }>()
 
 **5. Service Layer**
 ```typescript
-// API запросы в отдельных сервисах
-class ApiService {
-  async getMessages(chatId: string) { }
+// API запросы в отдельных сервисах (функции, НЕ классы!)
+// Используем $fetch из Nuxt (НЕ axios!)
+export async function getMessages(chatId: string) {
+  return await $fetch(`/api/chats/${chatId}/messages`)
 }
 ```
-**Зачем**: Переиспользование, тестирование
+**Зачем**: Переиспользование, тестирование, простота
 
 ---
 
@@ -522,13 +532,24 @@ const result = arr.map(item => item.value * 2);
 
 #### Практика:
 ```bash
-# Запустим проект
+# Запустим проект через Docker Compose
 docker-compose up -d
 
 # Проверим что всё работает
+# Backend API
 curl http://localhost:3001
+
+# Frontend
 curl http://localhost:3000
+
+# MongoDB
+docker exec -it icore-mongodb mongosh -u admin -p password123
+
+# Redis
+docker exec -it icore-redis redis-cli
 ```
+
+**Важно:** Проект запускается через Docker Compose! Все сервисы (MongoDB, Redis, Backend, Frontend) в контейнерах с hot-reload.
 
 #### Изучаемые концепции:
 - Что такое TypeScript и зачем он нужен
@@ -577,97 +598,249 @@ backend/src/modules/auth/guards/jwt-auth.guard.ts
 
 **Файлы для создания:**
 ```
-frontend/app/pages/login.vue
-frontend/app/pages/register.vue
-frontend/app/stores/auth.ts
-frontend/app/services/api.ts
+frontend/app/types/auth.types.ts                    # Централизованные типы
+frontend/app/components/ui/BaseInput.vue            # Переиспользуемый input
+frontend/app/components/ui/BaseButton.vue           # Переиспользуемая кнопка
+frontend/app/components/auth/Form.vue               # Обертка для форм (тег: <AuthForm>)
+frontend/app/composables/useFormValidation.ts       # Логика валидации
+frontend/app/services/api/auth.service.ts           # API функции
+frontend/app/stores/auth.ts                         # Pinia store
+frontend/app/composables/useAuth.ts                 # Facade над store
+frontend/app/pages/login.vue                        # Страница входа
+frontend/app/pages/register.vue                     # Страница регистрации
+frontend/app/middleware/auth.ts                     # Защита маршрутов
+frontend/app/middleware/guest.ts                    # Для неавторизованных
 ```
 
 **Концепции:**
 
-1. **Vue 3 Composition API** (60 мин)
+1. **Компонентная архитектура** (60 мин) ⭐ НОВОЕ!
+   - **Принцип DRY**: один компонент для всех input/button
+   - **BaseInput.vue**: переиспользуемый input с валидацией
+   - **BaseButton.vue**: кнопка с вариантами (primary/secondary/ghost)
+   - **Form.vue**: обертка для auth форм (в папке auth/)
+   - **Именование**: `components/auth/Form.vue` → тег `<AuthForm>`
+   - **Props & Events**: двустороннее связывание через v-model
+   - **Slots**: гибкость через слоты (header, footer)
+
+2. **Централизованные типы** (30 мин) ⭐ НОВОЕ!
+   - **types/auth.types.ts**: все типы в одном месте
+   - User, LoginCredentials, RegisterData, AuthResponse
+   - **Принцип DRY**: типы переиспользуются везде
+   - Нет дублирования интерфейсов
+
+3. **Переиспользуемая валидация** (45 мин) ⭐ НОВОЕ!
+   - **composables/useFormValidation.ts**: логика валидации
+   - Функции: validateEmail(), validatePassword(), validateUsername()
+   - Экспорт в компоненты и страницы
+   - **Принцип DRY**: валидация не дублируется
+
+4. **Vue 3 Composition API** (45 мин)
    - `ref` vs `reactive`
    - `computed`, `watch`
    - lifecycle hooks (`onMounted`, `onUnmounted`)
    - `<script setup>` синтаксис
 
-2. **Pinia Store** (45 мин)
+5. **Pinia Store** (45 мин)
    - State management
    - Почему Pinia вместо Vuex
    - Композиция stores
-   - Персистентность
+   - Персистентность (localStorage)
 
-3. **HTTP запросы** (30 мин)
-   - fetch vs axios vs $fetch
+6. **Service Layer** (30 мин)
+   - **auth.service.ts**: функции вместо класса (Nuxt 4)
+   - register(), login(), getProfile()
+   - Использование $fetch (встроенный в Nuxt, НЕ axios!)
+   - Использование типов из auth.types.ts
    - Обработка ошибок
-   - TypeScript типизация
 
-4. **Форма и валидация** (30 мин)
-   - v-model
-   - @submit.prevent
-   - Клиентская валидация
-   - UX для ошибок
+7. **Composable Facade** (30 мин)
+   - **useAuth.ts**: удобный доступ к store
+   - Методы с редиректами
+   - Computed для реактивности
+
+8. **Семантическая верстка HTML5** (30 мин) ⭐ ВАЖНО!
+   - **Правильные теги вместо div**:
+     - `<main>` - основной контент страницы
+     - `<section>` - логические разделы
+     - `<article>` - независимый контент (карточки, формы)
+     - `<header>` - шапка секции/страницы
+     - `<footer>` - подвал секции/страницы
+     - `<nav>` - навигация
+   - **Зачем**: SEO, доступность (a11y), читаемость кода
+   - **Пример структуры**:
+     ```vue
+     <template>
+       <main class="login-page">
+         <article class="auth-form">
+           <header class="auth-form__header">
+             <h1>Вход</h1>
+           </header>
+           <form><!-- поля --></form>
+           <footer class="auth-form__footer">
+             <!-- ссылки -->
+           </footer>
+         </article>
+       </main>
+     </template>
+     ```
+   - **Связь label и input**: обязательно через `for` и `id`
+   - **button type**: всегда указывать `type="submit"` или `type="button"`
 
 **🎨 Дизайн:**
-- Простая форма (пока без финального дизайна)
-- Фокус на функциональности
-- Стилизация по макетам придет в День 7-10
+- Темная тема (#212121 фон, #FFC700 акцент)
+- Компоненты с официальными тенями ($shadow-block, $shadow-input)
+- Семантическая верстка (main, section, article, header, footer)
+- **Типографика**: 
+  - **Шрифт '5mal6Lampen'** (пиксельный/ретро стиль) применяется ко ВСЕМ элементам:
+    - Заголовки (h1-h6): UPPERCASE, letter-spacing: 1-2px
+    - Labels, inputs, buttons: обычный регистр
+    - Весь текст использует этот шрифт
+  - Использовать @include font-styles(size, weight, line-height)
+- Адаптивность через mixins (@include mobile, @include tablet)
 
 ---
 
-### 📅 Дни 3-4: Система Друзей
+### 📅 День 2: User Search API + Sidebar UI (БЕЗ системы друзей!)
 
-#### День 3: Backend Friends (4-5 часов)
+**ВАЖНО:** В iCore Messenger НЕТ системы друзей! Как в Telegram - можно писать любому пользователю напрямую через глобальный поиск.
+
+**Обучающие материалы:**
+- `learning/Day_2/README.md` - общий обзор
+- `learning/Day_2/OVERVIEW.md` - детальный обзор
+- `learning/Day_2/QUICK_START.md` - быстрый старт
+- `learning/Day_2/INDEX.md` - навигация по материалам
+- `learning/Day_2/Backend_Implementation/` - Backend теория/практика/чеклист
+- `learning/Day_2/Frontend_Implementation/` - Frontend теория/практика/чеклист
+
+---
+
+#### Backend: User Search API (4-5 часов)
+
+**Цель:** Реализовать глобальный поиск пользователей через MongoDB Query Builder с text indexes
+
+**Что сделаем:**
+1. **SearchUsersDto** - валидация query параметров (query, limit, skip)
+2. **UsersService.searchUsers()** - поиск через $regex, $or, $ne
+3. **GET /users/search** endpoint с JWT защитой
+4. **MongoDB Text Indexes** для оптимизации (name, userId, email)
+5. **Offset-based Pagination** с hasMore индикатором
+
+**Новые концепции:**
+- **MongoDB Query Builder**: $regex (pattern matching), $or (logical OR), $ne (exclude current user)
+- **MongoDB Text Indexes**: O(log n) performance для full-text search
+- **Offset-based Pagination**: limit (количество), skip (offset), total (всего), hasMore (есть ещё)
+- **DTO Validation**: @IsString, @MinLength(2), @IsOptional, @Type(() => Number), @IsInt, @Min
+- **Service Layer Pattern**: разделение Controller / Service / Repository
 
 **Файлы:**
+- `backend/src/modules/users/dto/search-users.dto.ts` ✅ создаём
+- `backend/src/modules/users/users.service.ts` ✏️ добавляем searchUsers()
+- `backend/src/modules/users/users.controller.ts` ✏️ добавляем GET /users/search
+- `backend/src/modules/users/schemas/user.schema.ts` ✏️ добавляем text indexes
+
+**API Endpoint:**
 ```
-backend/src/modules/users/schemas/friend-request.schema.ts
-backend/src/modules/users/users.service.ts (дополнение)
+GET /users/search?query=john&limit=10&skip=0
+Authorization: Bearer {JWT_TOKEN}
+
+Response:
+{
+  "users": [{ _id, userId, name, email, avatar, createdAt, updatedAt }],
+  "total": 42,
+  "hasMore": true
+}
 ```
 
-**Концепции:**
+**Применяем паттерны:**
+- Service Layer Pattern (UsersService.searchUsers)
+- DTO Pattern (SearchUsersDto)
+- Repository Pattern (MongoDB queries)
 
-1. **MongoDB Relations** (45 мин)
-   - Embedded vs Referenced
-   - Population
-   - Производительность
+**Обучающие материалы:**
+- `learning/Day_2/Backend_Implementation/README.md` - обзор Backend части
+- `learning/Day_2/Backend_Implementation/Theory.md` - теория (MongoDB Query Builder, Indexes, Pagination, DTO, Service Layer)
+- `learning/Day_2/Backend_Implementation/Practice.md` - пошаговая практика (6 шагов)
+- `learning/Day_2/Backend_Implementation/Checklist.md` - чеклист для отслеживания прогресса
 
-2. **Query Builder** (30 мин)
-   - find, findOne
-   - Query operators ($or, $and)
-   - Регулярные выражения
-   - Индексы для поиска
+---
 
-3. **Статусы и состояния** (30 мин)
-   - Enum для статусов
-   - State machine логика
-   - Валидация переходов
+#### Frontend: Sidebar UI + Global Search (4-5 часов)
 
-#### День 4: Frontend Friends (4-5 часов)
+**Цель:** Создать адаптивный Sidebar с AppHeader, MenuModal и глобальным поиском пользователей
+
+**Что сделаем:**
+1. **ChatList.vue (Sidebar)** - адаптивный (Desktop: 450px, Mobile: 100vw)
+2. **AppHeader.vue** - MenuButton + SearchInput с debouncing
+3. **MenuButton.vue** - иконка гамбургер-меню
+4. **MenuModal.vue** - Профиль, Настройки, Выйти (Teleport to body)
+5. **SearchInput.vue** - поиск с debounce 300ms + dropdown результатов
+6. **user.service.ts** - интеграция с Backend API (fetch)
+7. **users.ts store** - состояние поиска (searchResults, searchLoading, searchError)
+8. **user.types.ts** - типы (User, SearchUsersParams, SearchUsersResponse)
+
+**Новые концепции:**
+- **Adaptive Layout**: 450px (Desktop), 100vw (Mobile), breakpoint 1024px
+- **Component Composition**: MenuButton + SearchInput → AppHeader
+- **Debouncing**: useDebounceFn от @vueuse/core (300ms delay)
+- **Dropdown UI Patterns**: закрытие по Escape, onClickOutside от @vueuse/core
+- **Modal Patterns**: v-model для open/close, Teleport to="body", @click.stop
+- **Semantic HTML5**: aside (sidebar), header (app header), nav (navigation), main (content)
+- **Official Shadows**: $shadow-block (для блоков), $shadow-input (ТОЛЬКО для input)
+- **Store Pattern**: Pinia store для глобального состояния
 
 **Файлы:**
+- `frontend/app/types/user.types.ts` ✅ создаём
+- `frontend/app/services/api/user.service.ts` ✅ создаём
+- `frontend/app/stores/users.ts` ✅ создаём
+- `frontend/app/components/MenuButton.vue` ✅ создаём
+- `frontend/app/components/MenuModal.vue` ✅ создаём
+- `frontend/app/components/SearchInput.vue` ✅ создаём
+- `frontend/app/components/AppHeader.vue` ✅ создаём
+- `frontend/app/components/ChatList.vue` ✅ создаём
+- `frontend/app/app.vue` ✏️ интегрируем ChatList
+
+**Layout Structure:**
 ```
-frontend/app/pages/friends.vue
-frontend/app/components/UserCard.vue
-frontend/app/stores/friends.ts
+Desktop (≥1024px):
+┌────────────────────┬──────────────────────────┐
+│   SIDEBAR (450px)  │   CHAT WINDOW (flex: 1) │
+├────────────────────┼──────────────────────────┤
+│  ┌──────────────┐  │                          │
+│  │ [☰] [ПОИСК🔍]│  │    "Выберите чат"        │
+│  └──────────────┘  │                          │
+│                    │      (placeholder)       │
+│  (список чатов)    │                          │
+└────────────────────┴──────────────────────────┘
+
+Mobile (<1024px):
+┌──────────────────────┐
+│  ┌────────────────┐  │
+│  │ [☰] [ПОИСК 🔍] │  │
+│  └────────────────┘  │
+│                      │
+│  (список чатов)      │
+└──────────────────────┘
 ```
 
-**Концепции:**
+**Применяем паттерны:**
+- Component Composition Pattern (MenuButton + SearchInput → AppHeader)
+- Store Pattern (Pinia users.ts store)
+- Debouncing Pattern (useDebounceFn)
+- Modal Pattern (v-model + Teleport)
+- Dropdown Pattern (Escape + click outside)
 
-1. **Композиция компонентов** (45 мин)
-   - Props и Events
-   - Переиспользуемость
-   - Slots
+**Design Rules:**
+- Single background: $bg-primary (#212121)
+- NO borders - separation only through shadows
+- Font: '5mal6Lampen'
+- Official Shadows: $shadow-block (blocks), $shadow-input (inputs only)
 
-2. **Debouncing** (30 мин)
-   - Оптимизация поиска
-   - VueUse composables
-   - Throttle vs Debounce
-
-3. **Lists и keys** (20 мин)
-   - v-for
-   - :key важность
-   - Performance
+**Обучающие материалы:**
+- `learning/Day_2/Frontend_Implementation/README.md` - обзор Frontend части
+- `learning/Day_2/Frontend_Implementation/Theory.md` - теория (Adaptive Layout, Component Composition, Debouncing, Dropdown UI, Modal patterns, Semantic HTML5, Official Shadows, Store Pattern)
+- `learning/Day_2/Frontend_Implementation/Practice.md` - пошаговая практика (8 шагов)
+- `learning/Day_2/Frontend_Implementation/Checklist.md` - чеклист для отслеживания прогресса
 
 ---
 

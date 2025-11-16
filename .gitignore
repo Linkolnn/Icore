@@ -19,3 +19,6 @@ coverage/
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+.claude/
+.kiro/
+CLAUDE.md
