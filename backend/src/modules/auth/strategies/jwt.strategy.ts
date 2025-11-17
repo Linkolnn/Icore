@@ -105,7 +105,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('Пользователь не найден')
     }
     
-    // Возвращаемый объект попадёт в request.user
-    return user
+    // Возвращаем UserPayload формат для совместимости с декоратором @User()
+    return {
+      sub: (user._id as any).toString(),
+      email: user.email,
+    }
   }
 }

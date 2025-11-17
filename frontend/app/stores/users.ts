@@ -67,7 +67,6 @@ export const useUsersStore = defineStore('users', () => {
       searchTotal.value = response.total
       searchHasMore.value = response.hasMore
     } catch (error: any) {
-      console.error('Search users error:', error)
       searchError.value = error.message || 'Failed to search users'
       searchResults.value = []
     } finally {

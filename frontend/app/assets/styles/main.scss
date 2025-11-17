@@ -31,6 +31,34 @@
   box-sizing: border-box;
 }
 
+// ===================================
+// 📜 CUSTOM SCROLLBAR
+// ===================================
+// Глобальная стилизация скроллбара для всего приложения
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px; // Для горизонтального скролла
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2); // Используем белый цвет с прозрачностью
+  border-radius: 3px;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+// Для горизонтального и вертикального скролла одновременно (угловой элемент)
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 // Global reset for borders - elements get volume through shadows, not borders
 *,
 *::before,

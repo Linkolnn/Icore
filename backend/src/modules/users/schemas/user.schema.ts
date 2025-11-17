@@ -68,11 +68,15 @@ export class User extends Document {
   /**
    * Хеш пароля (НЕ сам пароль!)
    * required: true - обязательное поле
-   * 
+   * select: false - НЕ возвращается в запросах по умолчанию (безопасность)
+   *
    * БЕЗОПАСНОСТЬ: Хранится bcrypt хеш, не plain text
    * Пример: $2b$10$rXG7ZxKxKxKxKxKxKxKxKxKxKxKxKxKxKxKxKxKxKxKx
+   *
+   * ВАЖНО: Чтобы получить пароль, нужно явно использовать .select('+password')
+   * Это предотвращает утечку хешей паролей в API ответах
    */
-  @Prop({ required: true })
+  @Prop({ required: true, select: false })
   password: string
 
   /**

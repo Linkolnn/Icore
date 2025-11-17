@@ -52,6 +52,17 @@ export class Chat {
   };
 
   /**
+   * Unread message count per participant
+   * Map of userId -> unread count
+   */
+  @Prop({
+    type: MongooseSchema.Types.Map,
+    of: Number,
+    default: {},
+  })
+  unreadCount: Map<string, number>;
+
+  /**
    * Soft delete flag
    */
   @Prop({ default: false })

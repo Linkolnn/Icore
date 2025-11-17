@@ -3,26 +3,38 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Chat, ChatDocument } from './schemas/chat.schema';
 import { CreateChatDto } from './dto/create-chat.dto';
+import { User, UserDocument } from '../users/schemas/user.schema';
 import { UpdateChatDto } from './dto/update-chat.dto';
+import { toStringId, compareIds } from '../../common/utils/id.utils';
+import { Server } from 'socket.io';
 
 @Injectable()
 export class ChatsService {
+  private io: Server;
+
   constructor(
     @InjectModel(Chat.name) private chatModel: Model<ChatDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
+
+  setSocketServer(server: Server) {
+    this.io = server;
+  }
 
   /**
    * Get all chats for a user
    */
-  async getUserChats(userId: string): Promise<Chat[]> {
-    // Convert userId to string in case it's an ObjectId
-    const userIdStr = userId.toString();
-    return this.chatModel
+  async getUserChats(userId: string): Promise<any[]> {
+    const userIdStr = toStringId(userId);
+    
+    const chats = await this.chatModel
       .find({
         participants: userIdStr,
         isDeleted: false,
@@ -30,14 +42,43 @@ export class ChatsService {
       .populate('participants', '-password -refreshToken')
       .sort({ 'lastMessage.createdAt': -1, updatedAt: -1 })
       .lean();
+
+    // Manually populate lastMessage.sender и добавить unreadCount для текущего пользователя
+    const result: any[] = [];
+    for (const chat of chats) {
+      // Populate sender используя User модель
+      if (chat.lastMessage?.sender) {
+        const sender = await this.userModel
+          .findById(chat.lastMessage.sender)
+          .select('name username userId avatar')
+          .lean();
+        
+        if (sender) {
+          chat.lastMessage.sender = sender as any;
+        }
+      }
+
+      // Добавляем unreadCount для текущего пользователя
+      // unreadCount это Map, нужно извлечь значение
+      const unreadMap = chat.unreadCount as any;
+      const unreadValue = unreadMap?.[userIdStr] || unreadMap?.get?.(userIdStr) || 0;
+      
+      const chatWithUnread = {
+        ...chat,
+        unreadCount: unreadValue,
+      };
+      
+      result.push(chatWithUnread);
+    }
+
+    return result;
   }
 
   /**
    * Create a new chat
    */
-  async createChat(dto: CreateChatDto, currentUserId: string): Promise<Chat> {
-    // Convert userId to string in case it's an ObjectId
-    const currentUserIdStr = currentUserId.toString();
+  async createChat(dto: CreateChatDto, currentUserId: string): Promise<any> {
+    const currentUserIdStr = toStringId(currentUserId);
 
     // Validation: Can't create chat with yourself
     if (dto.participantId === currentUserIdStr) {
@@ -51,7 +92,11 @@ export class ChatsService {
         dto.participantId,
       );
       if (existingChat) {
-        return existingChat;
+        // Return existing chat with unreadCount set to 0
+        return {
+          ...existingChat,
+          unreadCount: 0
+        };
       }
     }
 
@@ -74,13 +119,27 @@ export class ChatsService {
       throw new Error('Failed to create chat');
     }
 
-    return createdChat;
+    // Add unreadCount for the created chat (initially 0)
+    const chatWithUnread = {
+      ...createdChat,
+      unreadCount: 0
+    };
+
+    // Emit chat:created event to all participants' personal rooms
+    if (this.io) {
+      createdChat.participants.forEach((participant: any) => {
+        const participantId = participant._id || participant;
+        this.io.to(`user-${participantId}`).emit('chat:created', chatWithUnread);
+      });
+    }
+
+    return chatWithUnread;
   }
 
   /**
    * Get chat by ID
    */
-  async getChatById(chatId: string, userId: string): Promise<Chat> {
+  async getChatById(chatId: string, userId: string): Promise<any> {
     const chat = await this.chatModel
       .findById(chatId)
       .populate('participants', '-password -refreshToken');
@@ -90,17 +149,24 @@ export class ChatsService {
     }
 
     // Authorization: Check if user is participant
-    // Convert userId to string in case it's an ObjectId
-    const userIdStr = userId.toString();
+    const userIdStr = toStringId(userId);
     const isParticipant = chat.participants.some(
-      (p: any) => p._id.toString() === userIdStr,
+      (p: any) => compareIds(p._id, userIdStr),
     );
 
     if (!isParticipant) {
       throw new ForbiddenException('You are not a participant of this chat');
     }
 
-    return chat.toObject();
+    // Извлекаем unreadCount для текущего пользователя
+    const chatObj = chat.toObject();
+    const unreadMap = chatObj.unreadCount as any;
+    const unreadValue = unreadMap?.[userIdStr] || unreadMap?.get?.(userIdStr) || 0;
+    
+    return {
+      ...chatObj,
+      unreadCount: unreadValue,
+    };
   }
 
   /**
@@ -164,8 +230,8 @@ export class ChatsService {
     currentUserId: string,
     otherUserId: string,
   ): Promise<Chat | null> {
-    const currentUserIdStr = currentUserId.toString();
-    const otherUserIdStr = otherUserId.toString();
+    const currentUserIdStr = toStringId(currentUserId);
+    const otherUserIdStr = toStringId(otherUserId);
 
     // Can't have chat with yourself
     if (currentUserIdStr === otherUserIdStr) {
@@ -173,5 +239,74 @@ export class ChatsService {
     }
 
     return this.findPersonalChat(currentUserIdStr, otherUserIdStr);
+  }
+
+  /**
+   * Check if user is participant of chat
+   */
+  async isParticipant(chatId: string, userId: string): Promise<boolean> {
+    const chat = await this.chatModel.findById(chatId);
+    if (!chat || chat.isDeleted) {
+      return false;
+    }
+
+    const userIdStr = toStringId(userId);
+    return chat.participants.some((p) => compareIds(p, userIdStr));
+  }
+
+  /**
+   * Increment unread count for all participants except sender
+   */
+  async incrementUnreadCount(chatId: string, senderId: string): Promise<void> {
+    const chat = await this.chatModel.findById(chatId);
+    if (!chat) return;
+
+    const senderIdStr = toStringId(senderId);
+    
+    // Увеличиваем счётчик для всех участников кроме отправителя
+    for (const participantId of chat.participants) {
+      const participantIdStr = toStringId(participantId);
+      if (participantIdStr !== senderIdStr) {
+        const currentCount = chat.unreadCount.get(participantIdStr) || 0;
+        chat.unreadCount.set(participantIdStr, currentCount + 1);
+      }
+    }
+
+    await chat.save();
+  }
+
+  /**
+   * Reset unread count for a user in a chat
+   */
+  async resetUnreadCount(chatId: string, userId: string): Promise<void> {
+    const chat = await this.chatModel.findById(chatId);
+    if (!chat) return;
+
+    const userIdStr = toStringId(userId);
+    chat.unreadCount.set(userIdStr, 0);
+    await chat.save();
+  }
+
+  /**
+   * Update lastMessage in chat
+   */
+  async updateLastMessage(chatId: string, message: any): Promise<void> {
+    // Извлекаем sender ID правильно (может быть ObjectId, строкой или объектом)
+    let senderId;
+    if (typeof message.sender === 'string') {
+      senderId = new Types.ObjectId(message.sender);
+    } else if (message.sender._id) {
+      senderId = new Types.ObjectId(message.sender._id);
+    } else {
+      senderId = message.sender;
+    }
+    
+    await this.chatModel.findByIdAndUpdate(chatId, {
+      lastMessage: {
+        text: message.text,
+        sender: senderId,
+        createdAt: message.createdAt || new Date(),
+      },
+    });
   }
 }

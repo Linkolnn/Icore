@@ -1,0 +1,1241 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+---
+
+## 🎯 Project Overview
+
+**iCore Messenger** is a secure end-to-end encrypted messenger built as a **Modular Monolith** using:
+- **Backend**: NestJS + MongoDB + Redis + WebSocket + WebRTC
+- **Frontend**: Nuxt 4 + Vue 3 + Pinia + SASS
+- **DevOps**: Docker Compose for local development
+
+**Learning-driven development**: This project follows a 13-day structured learning plan (`LEARNING_PLAN.md`) with progressive feature implementation.
+
+---
+
+## 🚀 Essential Commands
+
+### Development Setup
+
+```bash
+# Start all services with Docker
+docker-compose up -d
+
+# Check service status
+docker-compose ps
+
+# View logs
+docker-compose logs -f backend
+docker-compose logs -f frontend
+
+# Stop all services
+docker-compose down
+```
+
+### Backend (NestJS)
+
+```bash
+cd backend
+
+# Development
+yarn start:dev          # Start with hot-reload
+
+# Production
+yarn build              # Build for production
+yarn start:prod         # Run production build
+
+# Code quality
+yarn lint               # ESLint check
+yarn format             # Prettier format
+
+# Testing
+yarn test               # Run unit tests
+yarn test:watch         # Run tests in watch mode
+yarn test:cov           # Generate coverage report
+yarn test:e2e           # Run e2e tests
+```
+
+### Frontend (Nuxt 4)
+
+```bash
+cd frontend
+
+# Development
+yarn dev                # Start dev server (localhost:3000)
+
+# Production
+yarn build              # Build for production
+yarn preview            # Preview production build
+yarn generate           # Generate static site
+
+# Nuxt utilities
+yarn postinstall        # Prepare Nuxt (auto-runs after install)
+```
+
+### Generate NestJS Modules
+
+```bash
+cd backend
+
+# Create new module with service and controller
+nest g module modules/[name]
+nest g service modules/[name]
+nest g controller modules/[name]
+
+# Example: Create notifications module
+nest g module modules/notifications
+nest g service modules/notifications
+nest g controller modules/notifications
+```
+
+---
+
+## 🏗️ Architecture
+
+### Backend Module Structure
+
+```
+backend/src/modules/[module-name]/
+├── [module-name].module.ts           # NestJS module definition
+├── [module-name].service.ts          # Business logic
+├── [module-name].controller.ts       # HTTP endpoints
+├── [module-name].gateway.ts          # WebSocket (if needed)
+├── dto/                              # Data Transfer Objects
+│   ├── create-[name].dto.ts
+│   └── update-[name].dto.ts
+├── schemas/                          # Mongoose schemas
+│   └── [name].schema.ts
+├── interfaces/                       # TypeScript interfaces
+│   └── [name].interface.ts
+└── guards/                           # Auth guards (if needed)
+    └── [name]-auth.guard.ts
+```
+
+**Existing modules**:
+- `auth` - JWT authentication
+- `users` - User management + search
+- `chats` - Chat/room management
+- `messages` - Message handling
+- `websocket` - Real-time events
+- `webrtc` - Video/audio signaling
+- `encryption` - E2EE utilities
+
+### Frontend Structure
+
+```
+frontend/app/
+├── pages/                            # Auto-routed pages
+│   ├── index.vue                     # Home/chat list
+│   ├── login.vue                     # Login page
+│   ├── register.vue                  # Registration
+│   └── chat/
+│       └── [id].vue                  # Dynamic chat route
+├── components/                       # Reusable UI components
+│   ├── layout/
+│   │   ├── ChatSidebar.vue           # Sidebar with search & chat list
+│   │   ├── AppHeader.vue             # Header with search input
+│   │   └── MenuModal.vue             # Dropdown menu under button
+│   ├── ui/
+│   │   ├── BaseButton.vue            # Base button (primary/secondary/icon)
+│   │   └── BaseInput.vue             # Base input with validation
+│   └── auth/
+│       └── Form.vue                  # Auth form wrapper
+├── composables/                      # Composition API logic
+│   ├── useAuth.ts                    # Auth composable
+│   └── useChat.ts                    # Chat composable
+├── stores/                           # Pinia state management (Composition API)
+│   ├── auth.ts                       # Auth store
+│   └── users.ts                      # Users store (search, management)
+├── services/api/                     # API service layer
+│   ├── auth.service.ts               # Auth API calls
+│   └── user.service.ts               # User API calls
+├── types/                            # TypeScript types
+│   ├── auth.types.ts                 # Auth interfaces
+│   └── user.types.ts                 # User interfaces
+├── middleware/                       # Route middleware
+│   ├── auth.ts                       # Protected routes
+│   └── guest.ts                      # Guest-only routes
+├── assets/                           # Static assets
+│   ├── styles/
+│   │   ├── main.scss                 # Global styles
+│   │   ├── auth.scss                 # Shared auth page styles (DRY)
+│   │   ├── variables.scss            # SCSS variables (colors, shadows)
+│   │   └── mixins.scss               # Responsive mixins (auto-imported)
+│   ├── fonts/
+│   │   └── 5mal6Lampen.ttf           # Custom pixel font
+│   └── icons/                        # SVG icons (auto-imported by nuxt-svgo)
+│       ├── menu-icon.svg             # Menu hamburger
+│       └── x.svg                     # Close icon
+└── plugins/                          # Nuxt plugins
+    └── socket.client.ts              # Socket.io plugin
+```
+
+---
+
+## 🎨 Design System - CRITICAL RULES
+
+**Design Concept**: Volume through shadows, NOT through backgrounds!
+
+### 🚨 STRICT RULES (MUST FOLLOW):
+
+#### ✅ ALLOWED:
+1. **Unified background** - `background: $bg-primary` (#212121) for ALL elements
+2. **Volume through shadows** - elements distinguished ONLY by `$shadow-block` and `$shadow-input`
+3. **Unified radius** - `border-radius: $radius` for ALL elements
+4. **No borders** - `border: none` (except focus states)
+5. **Hover via opacity** - on hover, change opacity or shadow, NOT background
+
+#### ❌ FORBIDDEN:
+1. **NO lightening/darkening backgrounds** - `$bg-tertiary`, `lighten()`, `darken()` forbidden on hover
+2. **NO borders** - `border: 1px solid ...` forbidden (except focus)
+3. **NO different backgrounds** - all blocks have `$bg-primary`, only shadows differ
+4. **NO rgba backgrounds on hover** - `background: rgba(255, 255, 255, 0.05)` forbidden
+
+#### 💡 CORRECT HOVER:
+```scss
+// ✅ Correct - change opacity or shadow
+.element {
+  background: $bg-primary;
+  box-shadow: $shadow-block;
+  @include transition;
+
+  @include hover {
+    opacity: 0.8; // Decrease opacity
+    // OR
+    box-shadow: $shadow-block, 0 0 10px rgba(255, 255, 255, 0.1); // Enhance shadow
+  }
+}
+
+// ❌ Wrong - change background
+.element {
+  background: $bg-primary;
+
+  @include hover {
+    background: $bg-tertiary; // FORBIDDEN!
+    background: lighten($bg-primary, 5%); // FORBIDDEN!
+    background: rgba(255, 255, 255, 0.05); // FORBIDDEN!
+  }
+}
+```
+
+### 1. Official Colors (from `layout(img)/цветовая палитра.png`)
+
+```scss
+// Primary colors from palette
+$bg-primary: #212121;        // Main dark background (ONLY background for ALL elements!)
+$color-accent: #FFC700;      // Yellow accent (badges, notifications)
+$text-primary: #FFFFFF;      // Primary text
+
+// Derived colors
+$bg-input: #1a1a1a;         // Input backgrounds
+$text-secondary: #999999;    // Secondary text (nicknames, timestamps)
+$text-placeholder: #555555;  // Placeholder text
+```
+
+### 2. Official Shadows (ONLY THESE TWO)
+
+```scss
+// For ALL blocks except inputs
+$shadow-block: 0 0 4px 0 rgba(0, 0, 0, 0.05),
+               inset 0 0 15px 0 rgba(255, 255, 255, 0.05);
+
+// ONLY for input elements
+$shadow-input: 0 0 4px 0 rgba(255, 255, 255, 0.05),
+               inset 0 0 15px 0 rgba(0, 0, 0, 0.05);
+```
+
+**NEVER create custom shadows. Elements are distinguished by these two shadows ONLY.**
+
+### 3. Responsive Breakpoints (Use Mixins)
+
+```scss
+// Mixins are AUTO-IMPORTED via nuxt.config.ts additionalData
+// NO need to manually @import in components
+
+@mixin mobile  { @media (max-width: 859px)  { @content; } }
+@mixin tablet  { @media (max-width: 1364px) { @content; } }
+@mixin laptop  { @media (max-width: 1919px) { @content; } }
+
+// Example usage in any .vue component
+.sidebar {
+  width: 400px; // Desktop width
+
+  @include mobile {
+    width: 100vw; // Mobile: full width
+  }
+}
+```
+
+**Key breakpoints:**
+- **Mobile**: ≤859px (ChatSidebar 100vw)
+- **Tablet**: ≤1364px
+- **Laptop**: ≤1919px
+- **Desktop**: >1364px (ChatSidebar 400px)
+
+**NEVER use hardcoded media queries like `@media (max-width: 1024px)`**
+
+### 4. Typography
+
+```scss
+// Custom pixel font for ALL text
+font-family: '5mal6Lampen', sans-serif;
+
+// ONLY headings use uppercase
+h1, h2, h3, h4, h5, h6 {
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+// All other text - normal case
+// Labels, paragraphs, buttons, placeholders - NO uppercase
+```
+
+### 5. Semantic HTML5 - REQUIRED
+
+```vue
+<!-- ✅ Correct -->
+<aside class="sidebar">
+  <header class="sidebar-header">
+    <nav class="navigation">
+      <section class="chats">
+        <article class="chat-item">
+          ...
+        </article>
+      </section>
+    </nav>
+  </header>
+</aside>
+
+<!-- ❌ Wrong - don't use divs for structural elements -->
+<div class="sidebar">
+  <div class="sidebar-header">
+    ...
+  </div>
+</div>
+```
+
+**When to use**:
+- `<header>` - Section/page header
+- `<footer>` - Section/page footer
+- `<nav>` - Navigation
+- `<main>` - Main content
+- `<aside>` - Sidebar
+- `<section>` - Logical section
+- `<article>` - Independent content (cards, list items)
+
+### 6. Design Mockups Location
+
+All design mockups are in: `/home/linkoln/Projects/Icore/layout(img)/`
+
+**Pages**:
+- `Chatlist.png` - Main chat list page
+- `Chat.png` - Empty chat with rules
+- `Chat-1.png` - Active chat with messages
+- `Chanel chatlist.png` - Channel list
+
+**Components**:
+- `input block (в чате).png` - Message input
+- `message.png` - Message bubble
+- `шапка (в чате).png` - Chat header
+- `шапка-поиск(в обычном chatlist).png` - Search header
+
+**Always reference mockups when implementing UI components.**
+
+---
+
+## 📚 Documentation References
+
+### Must Read Before Coding
+
+1. **PATTERNS_CHECKLIST.md** - Design patterns, architecture layers, SOLID principles
+2. **DESIGN_REFERENCE.md** - Complete design system, shadows, colors, responsive layout
+3. **LEARNING_PLAN.md** - 13-day development roadmap
+
+### Learning Materials Structure
+
+```
+learning/
+├── Day_1/                           # Backend Auth + Frontend Auth Pages
+│   ├── README.md                    # Day overview
+│   ├── QUICK_START.md               # 5-minute quickstart
+│   ├── OVERVIEW.md                  # Visual map
+│   ├── INDEX.md                     # Topic index
+│   ├── Backend_Implementation/
+│   │   ├── Theory.md                # Concepts
+│   │   ├── Practice.md              # Step-by-step
+│   │   └── Checklist.md             # Progress tracker
+│   └── Frontend_Implementation/
+│       ├── Theory.md
+│       ├── Practice.md
+│       └── Checklist.md
+├── Day_2/                           # User Search API + Sidebar UI
+│   └── [same structure]
+└── Day_3/                           # (future days)
+```
+
+---
+
+## 🎯 Code Quality Standards
+
+### Backend Patterns (NestJS)
+
+```typescript
+// ✅ Correct: Logic in service, not controller
+@Controller('users')
+export class UsersController {
+  constructor(private readonly usersService: UsersService) {}
+
+  @Post('register')
+  @UseGuards(JwtAuthGuard)                    // Auth guard
+  async register(
+    @Body() registerDto: RegisterDto,         // DTO validation
+    @User() user: UserPayload                 // Current user
+  ) {
+    return this.usersService.register(registerDto);
+  }
+}
+
+// ❌ Wrong: Business logic in controller
+@Post('register')
+async register(@Body() data) {
+  const hash = await bcrypt.hash(data.password, 10);  // NO!
+  await this.db.save({ ...data, password: hash });    // NO!
+}
+```
+
+**Required layers**:
+1. **Controller** - HTTP endpoints only
+2. **Service** - Business logic
+3. **Repository** - Database operations (Mongoose)
+4. **DTO** - Validation with `class-validator`
+5. **Guard** - Authentication/Authorization
+
+### Frontend Patterns (Vue 3 + Nuxt 4)
+
+```vue
+<script setup lang="ts">
+// ✅ Correct: Composition API with services
+import { useAuthService } from '@/services/api/auth.service'
+
+const authService = useAuthService()
+
+const login = async (credentials: LoginCredentials) => {
+  await authService.login(credentials)  // Service layer
+}
+</script>
+
+<!-- ❌ Wrong: Direct API calls in component -->
+<script setup lang="ts">
+const login = async () => {
+  await fetch('/api/login', { ... })  // NO!
+}
+</script>
+```
+
+**Required patterns**:
+1. **Component** - UI only, minimal logic
+2. **Composable** - Reusable logic (`useAuth`, `useChat`)
+3. **Store** - Global state (Pinia Composition API style)
+4. **Service** - API calls
+5. **Types** - TypeScript interfaces
+
+**Important Nuxt 4 features:**
+- Components auto-imported from `components/` (no manual imports needed)
+- SVG icons auto-imported by `nuxt-svgo` (use `<SvgoIconName>`)
+- SCSS mixins and variables auto-imported via `nuxt.config.ts` additionalData
+- Stores auto-imported (use `useAuthStore()` without import)
+
+### Critical Frontend Patterns
+
+#### 1. Component Composition (Reuse Base Components)
+
+```vue
+<!-- ✅ Correct: Reuse BaseButton and BaseInput -->
+<template>
+  <UiBaseButton variant="primary" @click="handleSubmit">
+    Submit
+  </UiBaseButton>
+
+  <UiBaseButton variant="icon" @click="close">
+    <SvgoX /> <!-- Auto-imported SVG icon -->
+  </UiBaseButton>
+
+  <UiBaseInput
+    v-model="email"
+    type="email"
+    label="Email"
+    :error="errors.email"
+  />
+</template>
+
+<!-- ❌ Wrong: Custom button/input in each component -->
+<button class="submit-btn">Submit</button>
+<input type="email" v-model="email" />
+```
+
+**Why**: DRY principle, consistent styling, easier maintenance
+
+#### 2. v-model Pattern (Two-way Binding)
+
+```vue
+<!-- Parent: ChatSidebar.vue -->
+<template>
+  <LayoutAppHeader
+    v-model:search-query="searchQuery"
+    v-model:show-results="showResults"
+  />
+</template>
+
+<script setup>
+const searchQuery = ref('')
+const showResults = ref(false)
+</script>
+
+<!-- Child: AppHeader.vue -->
+<script setup>
+const props = defineProps<{
+  searchQuery: string
+  showResults: boolean
+}>()
+
+const emit = defineEmits<{
+  'update:searchQuery': [value: string]
+  'update:showResults': [value: boolean]
+}>()
+
+// Computed for v-model on BaseInput
+const localSearchQuery = computed({
+  get: () => props.searchQuery,
+  set: (value) => emit('update:searchQuery', value)
+})
+</script>
+```
+
+**Why**: Clean parent-child communication, reactive updates
+
+#### 3. Conditional Rendering (Search Results in Sidebar)
+
+```vue
+<!-- ✅ Correct: Conditional rendering in ChatSidebar -->
+<template>
+  <aside class="sidebar">
+    <LayoutAppHeader v-model:search-query="query" v-model:show-results="showResults" />
+
+    <div class="content">
+      <!-- Search results replace chat list -->
+      <div v-if="showResults && query.length >= 2" class="search-results">
+        <article v-for="user in results" :key="user._id" class="chat-item">
+          <!-- User card -->
+        </article>
+      </div>
+
+      <!-- Chat list placeholder -->
+      <p v-else class="placeholder">Chat list coming in Day 3</p>
+    </div>
+  </aside>
+</template>
+
+<!-- ❌ Wrong: Dropdown in AppHeader with position:absolute -->
+<div class="dropdown" style="position: absolute; z-index: 999">
+  <!-- Creates z-index issues, poor mobile UX -->
+</div>
+```
+
+**Why**: Natural content flow, no z-index issues, better mobile UX
+
+#### 4. Debounced Search (Simple setTimeout)
+
+```typescript
+// ✅ Correct: Simple debounce with clearTimeout
+let debounceTimer: NodeJS.Timeout | null = null
+
+function debouncedSearch(query: string) {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+  }
+
+  debounceTimer = setTimeout(async () => {
+    if (query.length >= 2) {
+      await usersStore.searchUsers({ query, limit: 10 })
+      emit('update:showResults', true)
+    } else {
+      usersStore.clearSearch()
+      emit('update:showResults', false)
+    }
+  }, 300) // 300ms delay
+}
+
+// ❌ Wrong: No debounce (spams API on every keystroke)
+async function search(query: string) {
+  await usersStore.searchUsers({ query })
+}
+```
+
+**Why**: Prevents API spam, optimal 300ms delay
+
+#### 5. Pinia Composition API Style
+
+```typescript
+// ✅ Correct: Composition API setup function style
+export const useUsersStore = defineStore('users', () => {
+  // State as ref
+  const searchResults = ref<User[]>([])
+  const searchLoading = ref(false)
+  const searchError = ref<string | null>(null)
+
+  // Actions as functions
+  async function searchUsers(params: SearchUsersParams) {
+    searchLoading.value = true
+    searchError.value = null
+    try {
+      const response = await userService.searchUsers(params)
+      searchResults.value = response.users
+    } catch (err) {
+      searchError.value = err.message
+    } finally {
+      searchLoading.value = false
+    }
+  }
+
+  function clearSearch() {
+    searchResults.value = []
+    searchError.value = null
+  }
+
+  return {
+    searchResults,
+    searchLoading,
+    searchError,
+    searchUsers,
+    clearSearch
+  }
+})
+
+// ❌ Wrong: Options API style
+export const useUsersStore = defineStore('users', {
+  state: () => ({ ... }),
+  actions: { ... }
+})
+```
+
+**Why**: Consistent with Composition API, better TypeScript support
+
+#### 6. Shared Styles (DRY Principle)
+
+```scss
+// ✅ Correct: Shared styles in auth.scss
+// frontend/app/assets/styles/auth.scss
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $bg-primary;
+}
+
+.error-message {
+  padding: 12px 16px;
+  background: rgba(#F44336, 0.1);
+  border: none; // NO borders!
+  border-radius: $radius;
+  color: #F44336;
+}
+
+// login.vue and register.vue both use:
+<main class="auth-page login-page">
+// No duplicated styles!
+
+// ❌ Wrong: Duplicate .auth-page and .error-message in both files
+// Result: ~60 lines of duplicated code
+```
+
+**Why**: DRY principle, single source of truth, easier updates
+
+#### 7. Composables for Reusable Reactive Logic
+
+```typescript
+// ✅ Correct: Composable with MaybeRef pattern (works with reactive and non-reactive inputs)
+// composables/useChat.ts
+import type { Chat } from '~/types/chat.types'
+
+export function useChatName(chat: MaybeRef<Chat | null>, previewUser?: any): ComputedRef<string> {
+  const authStore = useAuthStore()
+  const chatRef = toRef(chat) // Normalize to Ref
+
+  return computed(() => {
+    // Preview mode: имя пользователя
+    if (previewUser && previewUser.value) {
+      const user = unref(previewUser)
+      return user.name || user.username || 'Неизвестный пользователь'
+    }
+
+    const chatValue = chatRef.value // Access value inside computed
+    if (!chatValue) return 'Чат'
+
+    if (chatValue.name) return chatValue.name
+
+    // Для personal чата - имя собеседника
+    if (chatValue.type === 'personal' && chatValue.participants.length > 0) {
+      const currentUserId = authStore.user?._id
+      const otherUser = chatValue.participants.find(p => p._id !== currentUserId)
+      return otherUser?.name || otherUser?.username || 'Неизвестный пользователь'
+    }
+
+    return 'Новый чат'
+  })
+}
+
+// Usage in components:
+// For props: useChatName(toRef(props, 'chat'))
+// For store: useChatName(computed(() => chatsStore.currentChat))
+// For plain value: useChatName(ref(chat))
+
+// ❌ Wrong: Non-reactive composable
+export function useChatName(chat: Chat | null): string {
+  // Returns static string, loses reactivity!
+  return chat?.name || 'Чат'
+}
+
+// ❌ Wrong: Incorrect toRef usage
+const chatName = useChatName(toRef(() => props.chat)) // toRef doesn't accept functions!
+```
+
+**Why**: Eliminates code duplication, maintains reactivity, works with any input type
+
+**Key patterns**:
+- `MaybeRef<T>` - Universal type accepting `T | Ref<T> | ComputedRef<T>`
+- `toRef(value)` - Normalize any input to `Ref<T>`
+- `toRef(props, 'propName')` - Create reactive ref from prop
+- `computed(() => store.value)` - Create reactive ref from store
+- Always access `.value` inside computed functions
+
+#### 8. Utility Functions for Pure Transformations
+
+```typescript
+// ✅ Correct: Pure utility functions for data transformation
+// utils/date.utils.ts
+
+/**
+ * Форматировать дату в формат HH:MM
+ */
+export function formatTime(date: string | Date): string {
+  const d = new Date(date)
+  const hours = d.getHours().toString().padStart(2, '0')
+  const minutes = d.getMinutes().toString().padStart(2, '0')
+  return `${hours}:${minutes}`
+}
+
+/**
+ * Форматировать дату в формат DD.MM.YYYY
+ */
+export function formatDate(date: string | Date): string {
+  const d = new Date(date)
+  const day = d.getDate().toString().padStart(2, '0')
+  const month = (d.getMonth() + 1).toString().padStart(2, '0')
+  const year = d.getFullYear()
+  return `${day}.${month}.${year}`
+}
+
+// Usage in components:
+const formattedTime = computed(() => {
+  if (!props.chat.lastMessage) return ''
+  return formatTime(props.chat.lastMessage.createdAt)
+})
+
+// ❌ Wrong: Duplicate logic in every component
+const formattedTime = computed(() => {
+  if (!props.chat.lastMessage) return ''
+  const date = new Date(props.chat.lastMessage.createdAt)
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  return `${hours}:${minutes}`
+})
+```
+
+**Why**: Eliminates duplication, easier to test, consistent formatting everywhere
+
+**When to use**:
+- **Composables**: For reactive logic, state management, Vue-specific features (ref, computed, watch)
+- **Utilities**: For pure functions, data transformations, non-reactive operations
+
+**Example**: Time formatting is a utility (pure function), but chat name logic is a composable (needs reactivity and store access)
+
+### DRY Principle
+
+```typescript
+// ❌ Wrong: Duplicated code
+// In auth.service.ts
+const hash = await bcrypt.hash(password, 10)
+
+// In users.service.ts
+const hash = await bcrypt.hash(newPassword, 10)
+
+// ✅ Correct: Shared utility
+// utils/hash.util.ts
+export async function hashPassword(password: string) {
+  return await bcrypt.hash(password, 10)
+}
+
+// Everywhere
+import { hashPassword } from '@/utils/hash.util'
+const hash = await hashPassword(password)
+```
+
+---
+
+## 🔐 Security Requirements
+
+### Every Protected Endpoint Must Have:
+
+```typescript
+@UseGuards(JwtAuthGuard)              // 1. Authentication
+@Post('messages')
+async create(
+  @Body() dto: CreateMessageDto,      // 2. DTO validation
+  @User() user: UserPayload           // 3. Current user
+) {
+  // 4. Authorization check
+  if (!this.canAccess(user, chatId)) {
+    throw new ForbiddenException()
+  }
+
+  // 5. Sanitize input
+  const sanitized = this.sanitize(dto.content)
+
+  return this.service.create(sanitized)
+}
+```
+
+### Password Security
+
+```typescript
+// ✅ Always use bcrypt with salt
+const hash = await bcrypt.hash(password, 10)
+
+// ❌ Never use weak hashing
+const hash = sha256(password)  // NO!
+```
+
+---
+
+## 🧪 Testing
+
+### Backend Tests
+
+```bash
+# Unit tests
+yarn test
+
+# Watch mode for TDD
+yarn test:watch
+
+# E2E tests
+yarn test:e2e
+
+# Coverage report
+yarn test:cov
+```
+
+### Frontend Testing
+
+Currently no test setup. When implementing:
+- Use Vitest for unit tests
+- Use Playwright for E2E tests
+
+---
+
+## 🚨 Common Pitfalls and Known Bugs
+
+### 1. BaseInput Text Disappearing Bug
+
+```scss
+// ❌ Problem: Text becomes invisible when typing
+.input__field {
+  background: $bg-primary;
+  color: $text-primary;
+  // Missing webkit properties
+}
+
+// ✅ Solution: Add webkit-specific properties
+.input__field {
+  background: $bg-primary;
+  color: $text-primary;
+  -webkit-text-fill-color: $text-primary; // Ensures text visibility
+  -webkit-opacity: 1; // Prevents opacity issues
+}
+```
+
+### 2. SVG Icon Component Naming
+
+```vue
+<!-- ❌ Wrong: Incorrect auto-import name -->
+<SvgoXIcon /> <!-- x.svg does NOT become SvgoXIcon -->
+
+<!-- ✅ Correct: nuxt-svgo converts x.svg → SvgoX -->
+<SvgoX />
+
+<!-- Rule: [filename] → Svgo[PascalCase] -->
+<!-- menu-icon.svg → SvgoMenuIcon -->
+<!-- x.svg → SvgoX (no -icon suffix) -->
+```
+
+### 3. Unnecessary Wrapper Elements
+
+```vue
+<!-- ❌ Wrong: Unnecessary span wrapper -->
+<template>
+  <button class="base-button">
+    <span class="base-button__content">
+      <slot />
+    </span>
+  </button>
+</template>
+
+<!-- ✅ Correct: Direct slot in button -->
+<template>
+  <button class="base-button">
+    <slot />
+  </button>
+</template>
+
+<style lang="scss" scoped>
+// Style SVG directly with :deep()
+.base-button--icon {
+  :deep(svg) {
+    width: 20px;
+    height: 20px;
+  }
+}
+</style>
+```
+
+**Why**: Fewer DOM nodes = better performance, cleaner code
+
+### 4. Wrong SCSS Mixin Usage
+
+```scss
+// ❌ Wrong: Hardcoded breakpoint
+@media (max-width: 1024px) {
+  width: 100vw;
+}
+
+// ✅ Correct: Use official mixins
+@include tablet {
+  width: 100vw;
+}
+```
+
+### 5. Wrong Shadow Usage
+
+```scss
+// ❌ Wrong: Custom shadow
+.message {
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+// ✅ Correct: Official shadow
+.message {
+  box-shadow: $shadow-block;
+}
+```
+
+### 6. Missing Semantic HTML
+
+```vue
+<!-- ❌ Wrong -->
+<div class="sidebar">
+  <div class="header">...</div>
+</div>
+
+<!-- ✅ Correct -->
+<aside class="sidebar">
+  <header class="header">...</header>
+</aside>
+```
+
+### 7. Options API Usage
+
+```vue
+<!-- ❌ Wrong: Options API -->
+<script>
+export default {
+  data() {
+    return { count: 0 }
+  }
+}
+</script>
+
+<!-- ✅ Correct: Composition API -->
+<script setup lang="ts">
+import { ref } from 'vue'
+const count = ref(0)
+</script>
+```
+
+### 8. Logic in Controller
+
+```typescript
+// ❌ Wrong: Business logic in controller
+@Post('login')
+async login(@Body() data) {
+  const user = await this.db.findOne({ email: data.email })
+  const valid = await bcrypt.compare(data.password, user.password)
+  // ... more logic
+}
+
+// ✅ Correct: Delegate to service
+@Post('login')
+async login(@Body() loginDto: LoginDto) {
+  return this.authService.login(loginDto)
+}
+```
+
+### 9. Composable Reactivity Loss (MaybeRef Pattern)
+
+```typescript
+// ❌ Wrong: Composable doesn't accept reactive values
+export function useChatName(chat: Chat | null): string {
+  if (!chat) return 'Чат'
+  return chat.name || 'Новый чат'
+}
+
+// Usage - loses reactivity:
+const chatName = useChatName(props.chat) // Static string, doesn't update!
+
+// ❌ Wrong: Incorrect toRef usage
+const chatName = useChatName(toRef(() => props.chat)) // toRef doesn't accept functions!
+
+// ✅ Correct: MaybeRef pattern with proper reactive handling
+export function useChatName(chat: MaybeRef<Chat | null>): ComputedRef<string> {
+  const chatRef = toRef(chat) // Normalize to Ref
+
+  return computed(() => {
+    const chatValue = chatRef.value // Access .value inside computed
+    if (!chatValue) return 'Чат'
+    return chatValue.name || 'Новый чат'
+  })
+}
+
+// Usage - maintains reactivity:
+// For props:
+const chatName = useChatName(toRef(props, 'chat'))
+
+// For store:
+const chatName = useChatName(computed(() => chatsStore.currentChat))
+
+// For ref:
+const chatName = useChatName(ref(chat))
+```
+
+**Why**: Composables must work with reactive values (refs, computeds) to maintain Vue's reactivity system. Use `MaybeRef<T>` type and `toRef()` to normalize inputs.
+
+**Key rules**:
+- Composables should accept `MaybeRef<T>` instead of `T`
+- Inside composable: use `toRef(value)` to convert to `Ref<T>`
+- For props: use `toRef(props, 'propName')` NOT `toRef(() => props.prop)`
+- For store: use `computed(() => store.value)`
+- Always access `.value` inside computed functions
+- Return `ComputedRef<T>` for reactive results
+
+---
+
+## 🎓 Learning Progression
+
+The project follows a 13-day structured plan. Each day has:
+- **README.md** - Day overview with goals and architecture
+- **Theory.md** - Concepts and patterns explained
+- **Practice.md** - Step-by-step implementation guide
+- **Checklist.md** - Progress tracking with checkboxes
+
+### Learning Materials Structure
+
+```
+learning/Day_X/
+├── README.md                         # Quick overview
+├── Backend_Implementation/
+│   ├── Theory.md                     # Backend concepts
+│   ├── Practice.md                   # Step-by-step backend
+│   └── Checklist.md                  # Backend progress
+└── Frontend_Implementation/
+    ├── Theory.md                     # Frontend concepts
+    ├── Practice.md                   # Step-by-step frontend
+    └── Checklist.md                  # Frontend progress
+```
+
+### Current Implementation Status (Day 4 Complete)
+
+**✅ Completed:**
+- Day 1 Backend: Auth system (JWT, bcrypt, guards, DTOs)
+- Day 1 Frontend: Auth pages (login, register, middleware)
+- Day 2 Backend: User search API (search endpoint, query building)
+- Day 2 Frontend: Sidebar UI (ChatSidebar, AppHeader, MenuModal, user search)
+- Day 3 Backend: Chats API (CRUD operations, Mongoose relations, authorization)
+- Day 3 Frontend: Chat list, routing, chat page UI
+- Day 3 Refactoring: Composables and utilities (eliminated 150 lines of duplication)
+- Day 4 Backend: Messages API + WebSocket Gateway (real-time events, Socket.io rooms, JWT auth in WebSocket, sanitization, rate limiting)
+- Day 4 Frontend: Messages UI + Virtual Scrolling (RecycleScroller, Optimistic UI pattern, ChatList real-time updates)
+- Day 4 Documentation: Complete learning materials (Theory, Practice, Checklists, OVERVIEW, INDEX, QUICK_START, README)
+
+**Key Components Implemented:**
+- `UiBaseButton` - Reusable button (primary/secondary/icon variants)
+- `UiBaseInput` - Reusable input with validation and error display
+- `AuthForm` - Auth form wrapper
+- `LayoutChatSidebar` - Main sidebar with conditional search results
+- `LayoutAppHeader` - Header with debounced search input
+- `LayoutMenuModal` - Dropdown menu under button
+- `ChatItem` - Chat list item component
+- `ChatHeader` - Chat page header
+- `ChatList` - Chat list wrapper
+- `useAuth` composable - Auth logic
+- `useChat` composable - Chat logic (useChatName, useChatSubtitle, useChatAvatar, useChatOtherUser)
+- `useAuthStore` - Auth state (Pinia Composition API)
+- `useUsersStore` - Users state with search (Pinia Composition API)
+- `useChatsStore` - Chats state with CRUD operations (Pinia Composition API)
+- `formatTime`, `formatDate`, `formatDateTime` utilities - Date formatting
+- `/api/auth/register`, `/api/auth/login`, `/api/users/search` endpoints
+- `/api/chats` (GET, POST), `/api/chats/:id` (GET, DELETE), `/api/chats/find-or-check/:userId` endpoints
+
+**📁 Current File Structure:**
+```
+frontend/app/
+├── pages/
+│   ├── index.vue                     # Main page with chat list
+│   └── chat/
+│       └── [id].vue                  # Dynamic chat page
+├── components/
+│   ├── layout/ (ChatSidebar, AppHeader, MenuModal)
+│   ├── ui/ (BaseButton, BaseInput)
+│   ├── auth/ (Form)
+│   └── chat/ (Item, List, Header)
+├── composables/
+│   ├── useAuth.ts                    # Auth composable
+│   └── useChat.ts                    # Chat composables (NEW)
+├── utils/
+│   └── date.utils.ts                 # Date utilities (NEW)
+├── assets/styles/ (main.scss, auth.scss, variables.scss, mixins.scss)
+├── assets/icons/ (menu-icon.svg, x.svg)
+├── stores/ (auth.ts, users.ts, chats.ts)
+├── services/api/ (auth.service.ts, user.service.ts, chat.service.ts)
+├── types/ (auth.types.ts, user.types.ts, chat.types.ts)
+└── middleware/ (auth.ts, guest.ts)
+```
+
+**Before implementing any feature**:
+1. Check if there's a learning day covering it in `learning/Day_*/`
+2. Read the Theory.md to understand concepts
+3. Follow Practice.md step-by-step
+4. Track progress in Checklist.md
+5. Follow the materials to maintain code consistency
+
+---
+
+## 📦 Environment Variables
+
+### Backend (.env)
+
+```bash
+NODE_ENV=development
+PORT=3001
+MONGODB_URI=mongodb://admin:password123@localhost:27017/icore?authSource=admin
+REDIS_HOST=localhost
+REDIS_PORT=6379
+JWT_SECRET=your-super-secret-jwt-key-change-in-production
+JWT_EXPIRES_IN=7d
+```
+
+### Frontend (.env)
+
+```bash
+NUXT_PUBLIC_API_BASE=http://localhost:3001
+NUXT_PUBLIC_WS_BASE=ws://localhost:3001
+```
+
+---
+
+## 🔄 Development Workflow
+
+### When Adding a New Feature
+
+1. **Check learning materials** - Is there a day covering this feature in `learning/Day_*/`?
+2. **Review patterns** - Check `PATTERNS_CHECKLIST.md` for applicable patterns
+3. **Check design** - Review mockups in `layout(img)/` directory
+4. **Read documentation** - Check `DESIGN_REFERENCE.md` for design system rules
+5. **Implement with patterns** - Follow architecture layers (Controller → Service → Repository)
+6. **Apply strict design rules** - Unified background, shadows only, no borders
+7. **Use official styles** - Apply `$shadow-block`/`$shadow-input`, `$bg-primary`, responsive mixins
+8. **Test functionality** - Verify in browser, check console for errors
+9. **Update checklist** - Mark progress in `learning/Day_*/Checklist.md`
+
+### Debugging Common Issues
+
+**Frontend not loading:**
+```bash
+# Check if backend is running
+curl http://localhost:3001/api/users/me
+
+# Check frontend logs
+cd frontend && yarn dev
+# Look for Nuxt compilation errors
+
+# Clear Nuxt cache
+rm -rf frontend/.nuxt
+```
+
+**CORS errors:**
+```typescript
+// Backend: Ensure CORS is configured in main.ts
+app.enableCors({
+  origin: 'http://localhost:3000',
+  credentials: true
+})
+```
+
+**Auto-import not working:**
+```bash
+# Restart Nuxt dev server
+# Components from components/ are auto-imported
+# If still not working, check nuxt.config.ts modules
+```
+
+**Styles not applying:**
+```scss
+// Ensure mixins/variables are imported via nuxt.config.ts
+// Check vite.css.preprocessorOptions.scss.additionalData
+// Restart dev server after nuxt.config.ts changes
+```
+
+### Git Workflow
+
+```bash
+# Check current status vs learning plan
+git status
+
+# Before committing, verify:
+# - No design rule violations (borders, wrong shadows)
+# - No code duplication (DRY principle)
+# - Semantic HTML used
+# - TypeScript types defined
+# - No console errors
+
+git add .
+git commit -m "feat: implement user search in sidebar"
+```
+
+---
+
+## 💡 Key Principles
+
+1. **Scalability First** - Write production-ready code from day 1
+2. **Pattern-Driven** - Apply design patterns consistently
+3. **Design System Compliance** - NEVER deviate from official shadows/colors
+4. **Semantic HTML** - Accessibility and SEO matter
+5. **DRY** - No code duplication
+6. **Type Safety** - TypeScript everywhere
+7. **Layer Separation** - Controller → Service → Repository
+8. **Testing** - Write tests for critical business logic
+
+---
+
+**Remember**: This is a learning project. Quality > Speed. Follow the materials, apply patterns, and build scalable, maintainable code.

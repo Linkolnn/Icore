@@ -187,8 +187,9 @@ export class AuthService {
   async login(loginDto: LoginDto) {
     const { email, password } = loginDto
 
-    // 1. Поиск пользователя по email
-    const user = await this.userModel.findOne({ email })
+    // 1. Поиск пользователя по email (с паролем для проверки)
+    // select('+password') - явно включаем поле password (оно exclude по умолчанию)
+    const user = await this.userModel.findOne({ email }).select('+password')
     if (!user) {
       // НЕ говорим что именно неверно (email или пароль)
       // Безопасность: защита от перебора существующих email

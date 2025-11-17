@@ -61,7 +61,6 @@ export const useChatsStore = defineStore('chats', () => {
       const loadedChats = await chatService.getUserChats()
       chats.value = loadedChats
     } catch (error: any) {
-      console.error('Load chats error:', error)
       chatsError.value = error.message || 'Ошибка загрузки чатов'
       chats.value = []
     } finally {
@@ -86,7 +85,6 @@ export const useChatsStore = defineStore('chats', () => {
 
       return newChat
     } catch (error: any) {
-      console.error('Create chat error:', error)
       chatsError.value = error.message || 'Ошибка создания чата'
       return null
     } finally {
@@ -106,13 +104,15 @@ export const useChatsStore = defineStore('chats', () => {
       const chat = await chatService.getChatById(chatId)
       currentChat.value = chat
 
-      // Обновляем в списке, если есть
+      // Обновляем в списке или добавляем, если его нет
       const index = chats.value.findIndex(c => c._id === chatId)
       if (index !== -1) {
         chats.value[index] = chat
+      } else {
+        // Добавляем чат в список, если его там нет
+        chats.value.push(chat)
       }
     } catch (error: any) {
-      console.error('Load chat error:', error)
       chatsError.value = error.message || 'Ошибка загрузки чата'
       currentChat.value = null
     } finally {
@@ -136,7 +136,6 @@ export const useChatsStore = defineStore('chats', () => {
         currentChat.value = null
       }
     } catch (error: any) {
-      console.error('Delete chat error:', error)
       chatsError.value = error.message || 'Ошибка удаления чата'
     }
   }
@@ -157,6 +156,84 @@ export const useChatsStore = defineStore('chats', () => {
     chatsError.value = null
   }
 
+  /**
+   * Обновить lastMessage в списке чатов (real-time)
+   * Используется при получении message:new через WebSocket
+   */
+  function updateLastMessageInList(chatId: string, message: any) {
+    const chatIndex = chats.value.findIndex(c => c._id === chatId)
+    if (chatIndex === -1) {
+      return
+    }
+
+    const chat = chats.value[chatIndex]
+    if (!chat) return // Проверка на undefined
+    
+    // Проверяем, нужно ли увеличить счётчик непрочитанных
+    const authStore = useAuthStore()
+    const senderId = typeof message.sender === 'string' ? message.sender : message.sender._id
+    const isOwnMessage = senderId === authStore.user?._id
+    const isChatOpen = currentChat.value?._id === chatId
+    
+    // Убеждаемся, что unreadCount является числом
+    const currentUnreadCount = typeof chat.unreadCount === 'number' ? chat.unreadCount : 0
+    
+    // Создаем обновленный объект чата для сохранения реактивности
+    const updatedChat = {
+      ...chat,
+      lastMessage: {
+        text: message.text,
+        sender: message.sender,
+        createdAt: message.createdAt,
+        _id: message._id
+      },
+      unreadCount: !isOwnMessage && !isChatOpen 
+        ? currentUnreadCount + 1 
+        : currentUnreadCount
+    }
+
+    // Удаляем старый чат и добавляем обновленный в начало
+    chats.value.splice(chatIndex, 1)
+    chats.value.unshift(updatedChat)
+  }
+
+  /**
+   * Сбросить счётчик непрочитанных для чата
+   * Вызывается при открытии чата
+   */
+  function resetUnreadCount(chatId: string) {
+    const chatIndex = chats.value.findIndex(c => c._id === chatId)
+    if (chatIndex !== -1) {
+      const chat = chats.value[chatIndex]
+      if (!chat) return
+      
+      // Создаем обновленный объект для сохранения реактивности
+      const updatedChat: Chat = {
+        ...chat,
+        unreadCount: 0
+      }
+      // Заменяем старый объект новым
+      chats.value[chatIndex] = updatedChat
+    }
+  }
+
+  /**
+   * Добавить новый чат в список (real-time)
+   * Используется при получении chat:created через WebSocket
+   */
+  function addChatToList(chat: Chat) {
+    // Проверяем, что чат еще не в списке
+    const exists = chats.value.some(c => c._id === chat._id)
+    if (!exists) {
+      // Убеждаемся, что unreadCount является числом
+      const chatWithValidUnreadCount = {
+        ...chat,
+        unreadCount: typeof chat.unreadCount === 'number' ? chat.unreadCount : 0
+      }
+      chats.value.unshift(chatWithValidUnreadCount)
+    }
+  }
+
   // ===== RETURN =====
 
   return {
@@ -175,5 +252,8 @@ export const useChatsStore = defineStore('chats', () => {
     deleteChat,
     clearCurrentChat,
     clearChats,
+    updateLastMessageInList,
+    addChatToList,
+    resetUnreadCount,
   }
 })

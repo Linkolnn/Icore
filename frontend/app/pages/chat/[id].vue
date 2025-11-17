@@ -28,20 +28,11 @@
         @menu="handleMenu"
       />
 
-      <!-- Chat Rules (Empty Chat Placeholder) -->
-      <section class="chat-rules">
-        <div class="chat-rules__card">
-          <h2 class="chat-rules__title">{{ chatName }}</h2>
-          <p class="chat-rules__description">
-            Это ваш чат. Здесь можно обмениваться с вашим собеседником.
-          </p>
-          <ul class="chat-rules__list">
-            <li>Никому не говорить об этом чате (даже собеседнику);</li>
-            <li>Не материться, а то тоже накажу;</li>
-            <li>Не следовать 1 правилу.</li>
-          </ul>
-        </div>
-      </section>
+      <!-- Message List with Virtual Scrolling -->
+      <ChatMessageVirtualList
+        :chat-id="chatId"
+        ref="messageListRef"
+      />
 
       <!-- Message Input with inline buttons and external Send button -->
       <footer class="chat-input">
@@ -83,6 +74,10 @@
 </template>
 
 <script setup lang="ts">
+import { useSocket } from '~/composables/useSocket'
+import { useChatName, useChatSubtitle, useChatAvatar } from '~/composables/useChat'
+import { useMessagesStore } from '~/stores/messages'
+
 /**
  * Chat Page ([id].vue)
  *
@@ -102,6 +97,11 @@ const isPreviewMode = computed(() => route.query.preview === 'true')
 
 const chatsStore = useChatsStore()
 const authStore = useAuthStore()
+const messagesStore = useMessagesStore()
+
+// ===== WEBSOCKET =====
+
+const socket = useSocket()
 
 // ===== STATE =====
 
@@ -110,6 +110,7 @@ const previewUser = ref<any>(null) // User data for preview mode
 const previewLoading = ref(false)
 const previewError = ref<string | null>(null)
 const isLeaving = ref(false) // Флаг для анимации выхода
+const messageListRef = ref<any>(null) // Ref для MessageList компонента
 
 // ===== COMPOSABLES =====
 
@@ -119,6 +120,59 @@ const isLeaving = ref(false) // Флаг для анимации выхода
 const chatName = useChatName(computed(() => chatsStore.currentChat), previewUser)
 const chatSubtitle = useChatSubtitle(computed(() => chatsStore.currentChat), previewUser)
 const chatAvatar = useChatAvatar(computed(() => chatsStore.currentChat), previewUser)
+
+// ===== WEBSOCKET LISTENERS =====
+// ВАЖНО: Регистрируем в setup, а не в onMounted для избежания lifecycle warnings
+
+// Слушаем новые сообщения
+socket.on<any>('message:new', (message) => {
+  // Извлекаем senderId (может быть строкой или объектом)
+  const senderId = typeof message.sender === 'string' ? message.sender : message.sender._id
+  const isOwnMessage = senderId === authStore.user?._id
+  
+  // Добавляем сообщение, только если это не наше (наше уже добавлено через Optimistic UI)
+  if (!isOwnMessage) {
+    messagesStore.addMessage(chatId, message)
+    // Auto-scroll к новому сообщению
+    nextTick(() => {
+      messageListRef.value?.scrollToBottom()
+    })
+    
+    // Сразу отправляем событие о прочтении, так как чат открыт
+    socket.emit('messages:read', { chatId }, (response: any) => {
+      // Автоматически помечено как прочитанное
+    })
+    
+    // Также сбрасываем счетчик на backend
+    const config = useRuntimeConfig()
+    $fetch(`/chats/${chatId}/read`, {
+      baseURL: config.public.apiBase,
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${authStore.accessToken}`
+      }
+    }).catch(() => {
+      // Ошибка сброса счетчика, не критично
+    })
+  }
+  
+  // Обновляем lastMessage в списке чатов (для обоих: своих и чужих сообщений)
+  const messageChatId = typeof message.chat === 'string' ? message.chat : message.chat._id
+  chatsStore.updateLastMessageInList(messageChatId, message)
+})
+
+// Слушаем typing индикаторы (TODO: Day 5 - отображение "печатает...")
+socket.on<any>('message:typing', (data) => {
+  // Обработка typing индикатора
+})
+
+// Слушаем события прочтения сообщений
+socket.on<any>('messages:read', (data: { chatId: string, readBy: string, messageIds: string[] }) => {
+  // Обновляем статус сообщений в store
+  if (data.chatId === chatId) {
+    messagesStore.updateMessagesStatus(data.messageIds, 'read')
+  }
+})
 
 // ===== LIFECYCLE =====
 
@@ -130,15 +184,48 @@ onMounted(async () => {
     // Preview mode: загружаем данные пользователя
     await loadPreviewUser()
   } else {
-    // Normal mode: загружаем чат
-    chatsStore.loadChatById(chatId)
+    // Normal mode: загружаем чат и сообщения
+    await chatsStore.loadChatById(chatId)
+    
+    // Сбрасываем счётчик непрочитанных (локально и на сервере)
+    chatsStore.resetUnreadCount(chatId)
+    
+    // Вызываем API для сброса на сервере
+    try {
+      const config = useRuntimeConfig()
+      const authStore = useAuthStore()
+      await $fetch(`/chats/${chatId}/read`, {
+        baseURL: config.public.apiBase,
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${authStore.accessToken}`
+        }
+      })
+    } catch (err) {
+      // Ошибка отметки как прочитанного, не критично
+    }
+    
+    await messagesStore.loadMessages(chatId)
+
+    // Подключаемся к WebSocket комнате чата
+    const joinResponse = await socket.emitWithAck<any>('chat:join', { chatId })
+    // Ошибка присоединения к комнате обрабатывается на backend
+
+    // Отправляем событие о прочтении сообщений
+    const readResponse = await socket.emitWithAck<any>('messages:read', { chatId })
+    // Сообщения помечены как прочитанные
   }
 })
 
 /**
- * При размонтировании очищаем текущий чат
+ * При размонтировании очищаем текущий чат и покидаем комнату
  */
 onUnmounted(() => {
+  if (!isPreviewMode.value) {
+    // Покидаем WebSocket комнату
+    socket.emit('chat:leave', { chatId })
+  }
+
   chatsStore.clearCurrentChat()
   previewUser.value = null
   previewError.value = null
@@ -183,7 +270,6 @@ async function loadPreviewUser() {
     previewUser.value = user
   } catch (err: any) {
     previewError.value = err.message || 'Ошибка загрузки пользователя'
-    console.error('Load preview user error:', err)
   } finally {
     previewLoading.value = false
   }
@@ -213,14 +299,14 @@ function handleRetry() {
  * Звонок (TODO: Day 7 - WebRTC)
  */
 function handleCall() {
-  console.log('Call clicked')
+  // TODO: Day 7 - WebRTC звонки
 }
 
 /**
  * Меню чата (TODO: Day 4)
  */
 function handleMenu() {
-  console.log('Menu clicked')
+  // TODO: Day 4 - Меню чата
 }
 
 /**
@@ -234,9 +320,11 @@ async function handleSendMessage() {
     try {
       const config = useRuntimeConfig()
       const authStore = useAuthStore()
+      const textToSend = messageText.value.trim()
+      messageText.value = '' // Очищаем поле сразу
 
       // Создаём personal чат
-      const chat = await $fetch('/chats', {
+      const chat = await $fetch<any>('/chats', {
         baseURL: config.public.apiBase,
         method: 'POST',
         headers: {
@@ -248,36 +336,84 @@ async function handleSendMessage() {
         }
       })
 
-      // Редирект на созданный чат (уже без preview)
+      // Отправляем сообщение через WebSocket сразу после создания чата
+      const socket = useSocket()
+      await socket.emitWithAck('message:send', {
+        chatId: chat._id,
+        text: textToSend,
+      })
+
+      // Редирект на созданный чат
       navigateTo(`/chat/${chat._id}`)
 
-      // TODO: После редиректа отправить сообщение (будет реализовано с messages)
-      console.log('Chat created, message will be sent:', messageText.value)
-
     } catch (err: any) {
-      console.error('Create chat error:', err)
       previewError.value = 'Ошибка создания чата'
     }
     return
   }
 
-  // Normal mode: отправка сообщения (TODO: Day 5)
-  console.log('Send message:', messageText.value)
-  messageText.value = ''
+  // Normal mode: отправка сообщения через WebSocket с Optimistic UI
+  const text = messageText.value.trim()
+  messageText.value = '' // Очищаем поле сразу
+
+  // 1. Создаём временное сообщение (Optimistic UI)
+  const tempId = `temp-${Date.now()}`
+  const tempMessage: any = {
+    _id: tempId,
+    sender: authStore.user,
+    chat: chatId,
+    text,
+    type: 'text',
+    status: 'pending',
+    isDeleted: false,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+
+  // 2. Добавляем в store (показываем пользователю сразу)
+  messagesStore.addMessage(chatId, tempMessage)
+
+  // 3. Auto-scroll к новому сообщению
+  nextTick(() => {
+    messageListRef.value?.scrollToBottomSmooth()
+    // Дополнительно форсируем скролл для надежности
+    setTimeout(() => {
+      messageListRef.value?.forceScrollToBottom()
+    }, 100)
+  })
+
+  // 4. Отправляем через WebSocket
+  try {
+    const response = await socket.emitWithAck<any>('message:send', {
+      chatId,
+      text,
+    })
+
+    if (response.success && response.message) {
+      // 5. Заменяем временное сообщение на реальное от сервера
+      messagesStore.replaceMessage(chatId, tempId, response.message)
+    } else {
+      // Ошибка от сервера
+      messagesStore.markMessageFailed(chatId, tempId)
+    }
+  } catch (err: any) {
+    // Ошибка WebSocket
+    messagesStore.markMessageFailed(chatId, tempId)
+  }
 }
 
 /**
  * Прикрепить файл (TODO: Day 6)
  */
 function handleAttach() {
-  console.log('Attach clicked')
+  // TODO: Day 6 - Прикрепление файлов
 }
 
 /**
  * Эмодзи (TODO: Day 6)
  */
 function handleEmoji() {
-  console.log('Emoji clicked')
+  // TODO: Day 6 - Выбор эмодзи
 }
 </script>
 
@@ -323,69 +459,6 @@ function handleEmoji() {
     padding: 10px;
     @include transition; // Плавная анимация
     animation: fadeIn 0.35s ease-out;
-  }
-}
-
-// ===== CHAT RULES (Empty Chat Placeholder) =====
-
-.chat-rules {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32px 20px;
-  overflow-y: auto;
-
-  &__card {
-    max-width: 500px;
-    padding: 32px 24px;
-    background: $bg-primary;
-    box-shadow: $shadow-block;
-    border-radius: $radius;
-    border: none;
-  }
-
-  &__title {
-    font-size: 20px;
-    font-weight: 700;
-    color: $text-primary;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin: 0 0 16px 0;
-    text-align: center;
-  }
-
-  &__description {
-    font-size: 14px;
-    color: $text-secondary;
-    margin: 0 0 16px 0;
-    text-align: center;
-    line-height: 1.6;
-  }
-
-  &__list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-
-    li {
-      font-size: 14px;
-      color: $text-secondary;
-      padding-left: 24px;
-      position: relative;
-      line-height: 1.6;
-
-      &::before {
-        content: '•';
-        position: absolute;
-        left: 8px;
-        color: $color-accent;
-        font-weight: 700;
-      }
-    }
   }
 }
 

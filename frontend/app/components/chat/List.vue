@@ -27,13 +27,15 @@
         v-for="chat in chatsStore.chats"
         :key="chat._id"
         :chat="chat"
-        :unread-count="0"
+        :unread-count="chat.unreadCount || 0"
       />
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
+import { useSocket } from '~/composables/useSocket'
+
 /**
  * ChatList Component
  *
@@ -69,7 +71,7 @@ const isLoading = computed(() => {
 /**
  * Отслеживаем изменения загрузки с задержкой
  */
-let loadingTimeout: NodeJS.Timeout | null = null
+let loadingTimeout: ReturnType<typeof setTimeout> | null = null
 
 watch(() => chatsStore.chatsLoading, (newValue) => {
   if (newValue) {
@@ -87,22 +89,43 @@ watch(() => chatsStore.chatsLoading, (newValue) => {
   }
 })
 
-// ===== LIFECYCLE =====
+// ===== WEBSOCKET =====
+
+const socket = useSocket()
 
 /**
- * При монтировании загружаем чаты
+ * Real-time listeners for chat updates
+ * ВАЖНО: Регистрируем в setup, а не в onMounted
+ */
+
+// Listen for new messages to update lastMessage
+socket.on('message:new', (message: any) => {
+  // Извлекаем chatId (может быть строкой или объектом с _id)
+  const chatId = typeof message.chat === 'string' ? message.chat : message.chat._id
+  chatsStore.updateLastMessageInList(chatId, message)
+})
+
+// Listen for new chats
+socket.on('chat:created', (chat: any) => {
+  chatsStore.addChatToList(chat)
+})
+
+/**
+ * Load initial chats on mount
  */
 onMounted(() => {
   chatsStore.loadChats()
 })
 
 /**
- * Очищаем таймер при размонтировании
+ * Cleanup: remove listeners and clear timer
  */
 onUnmounted(() => {
   if (loadingTimeout) {
     clearTimeout(loadingTimeout)
   }
+
+  // WebSocket listeners are auto-removed by useSocket composable
 })
 
 // ===== METHODS =====

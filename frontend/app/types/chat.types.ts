@@ -1,4 +1,4 @@
-import type { User } from './user.types'
+import type { User } from './auth.types'
 
 /**
  * Chat types
@@ -23,6 +23,7 @@ export interface Chat {
   participants: User[]
   name?: string
   lastMessage?: LastMessage
+  unreadCount?: number // Количество непрочитанных сообщений
   isDeleted: boolean
   createdAt: string
   updatedAt: string

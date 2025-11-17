@@ -18,8 +18,8 @@
 
       <div class="chat-item__footer">
         <p v-if="chat.lastMessage" class="chat-item__message">
-          <span class="sender">{{ senderName }}:</span>
-          {{ chat.lastMessage.text }}
+          <span v-if="chat.type !== 'personal'" class="sender">{{ senderName }}:</span>
+          {{ chat.lastMessage.text || 'Сообщение' }}
         </p>
         <p v-else class="chat-item__message chat-item__message--empty">
           Нет сообщений
@@ -36,6 +36,8 @@
 
 <script setup lang="ts">
 import type { Chat } from '~/types/chat.types'
+import { formatTime } from '~/utils/date.utils'
+import { useChatName } from '~/composables/useChat'
 
 // ===== PROPS =====
 
@@ -64,7 +66,42 @@ const senderName = computed(() => {
   if (!props.chat.lastMessage) return ''
 
   const sender = props.chat.lastMessage.sender
-  return sender.name || sender.username || 'Неизвестный'
+  const authStore = useAuthStore()
+  
+  // Если sender не указан, пытаемся найти другого участника чата
+  if (!sender) {
+    const otherParticipant = props.chat.participants?.find(
+      p => p._id !== authStore.user?._id
+    )
+    return otherParticipant?.name || 'Неизвестный'
+  }
+  
+  // Если sender - это объект с полями (populated)
+  if (typeof sender === 'object') {
+    return sender.name || 'Неизвестный'
+  }
+  
+  // Если sender - это строка (ID), пытаемся найти среди участников
+  if (typeof sender === 'string') {
+    // Сначала проверяем, не текущий ли это пользователь
+    if (sender === authStore.user?._id) {
+      return authStore.user?.name || 'Вы'
+    }
+    
+    // Ищем среди участников чата
+    const participant = props.chat.participants?.find(p => p._id === sender)
+    if (participant) {
+      return participant.name || 'Неизвестный'
+    }
+    
+    // Если не нашли, берем другого участника (не текущего пользователя)
+    const otherParticipant = props.chat.participants?.find(
+      p => p._id !== authStore.user?._id
+    )
+    return otherParticipant?.name || 'Неизвестный'
+  }
+  
+  return 'Неизвестный'
 })
 
 /**

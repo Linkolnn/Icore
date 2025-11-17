@@ -181,7 +181,6 @@ const handleRegister = async () => {
     })
   } catch (err) {
     // Ошибка уже в store.error
-    console.error('Register error:', err)
   }
 }
 

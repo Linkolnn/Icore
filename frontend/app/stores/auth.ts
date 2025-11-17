@@ -8,6 +8,7 @@
 import { defineStore } from 'pinia'
 import type { AuthState, LoginCredentials, RegisterData } from '~/types/auth.types'
 import * as authService from '~/services/api/auth.service'
+import { AUTH_COOKIE_CONFIG } from '~/utils/constants'
 
 export const useAuthStore = defineStore('auth', () => {
   // ===================================
@@ -39,13 +40,8 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = response.user
       accessToken.value = response.accessToken
 
-      // Сохраняем токен в зашифрованной HttpOnly cookie
-      const tokenCookie = useCookie('auth_token', {
-        maxAge: 60 * 60 * 24 * 7, // 7 дней
-        secure: true, // Только HTTPS (в production)
-        sameSite: 'strict', // CSRF защита
-        httpOnly: false // Nuxt cookies не могут быть httpOnly на клиенте, но шифруются
-      })
+      // Сохраняем токен в зашифрованной cookie
+      const tokenCookie = useCookie(AUTH_COOKIE_CONFIG.name, AUTH_COOKIE_CONFIG.options)
       tokenCookie.value = response.accessToken
     } catch (err: any) {
       error.value = err.message
@@ -68,12 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
       accessToken.value = response.accessToken
 
       // Сохраняем токен в зашифрованной cookie
-      const tokenCookie = useCookie('auth_token', {
-        maxAge: 60 * 60 * 24 * 7, // 7 дней
-        secure: true, // Только HTTPS (в production)
-        sameSite: 'strict', // CSRF защита
-        httpOnly: false // Nuxt cookies шифруются автоматически
-      })
+      const tokenCookie = useCookie(AUTH_COOKIE_CONFIG.name, AUTH_COOKIE_CONFIG.options)
       tokenCookie.value = response.accessToken
     } catch (err: any) {
       error.value = err.message
@@ -92,7 +83,7 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     // Удаляем токен из cookie
-    const tokenCookie = useCookie('auth_token')
+    const tokenCookie = useCookie(AUTH_COOKIE_CONFIG.name)
     tokenCookie.value = null
   }
 
@@ -102,9 +93,8 @@ export const useAuthStore = defineStore('auth', () => {
    */
   async function restoreSession(): Promise<void> {
     // Получаем токен из зашифрованной cookie
-    const tokenCookie = useCookie('auth_token')
+    const tokenCookie = useCookie(AUTH_COOKIE_CONFIG.name)
     const token = tokenCookie.value
-    
     if (!token) return
 
     loading.value = true

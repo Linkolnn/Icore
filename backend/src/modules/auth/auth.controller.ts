@@ -1,8 +1,10 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common'
+import { Controller, Post, Body, Get, UseGuards } from '@nestjs/common'
 import { AuthService } from './auth.service'
 import { RegisterDto } from './dto/register.dto'
 import { LoginDto } from './dto/login.dto'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
+import { User } from './decorators/user.decorator'
+import type { UserPayload } from './interfaces/user-payload.interface'
 
 /**
  * AuthController - Контроллер аутентификации
@@ -199,9 +201,8 @@ export class AuthController {
    */
   @Get('profile')
   @UseGuards(JwtAuthGuard)
-  getProfile(@Request() req) {
-    // req.user добавлен JwtStrategy
-    // Содержит данные пользователя из БД (без пароля)
-    return req.user
+  async getProfile(@User() user: UserPayload) {
+    // Получаем полные данные пользователя из БД по userId (sub)
+    return this.authService.validateUser(user.sub)
   }
 }

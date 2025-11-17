@@ -3,14 +3,16 @@ import {
   Get,
   Post,
   Delete,
+  Patch,
   Param,
   Body,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { ChatsService } from './chats.service';
 import { CreateChatDto } from './dto/create-chat.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { User } from '../auth/decorators/user.decorator';
+import type { UserPayload } from '../auth/interfaces/user-payload.interface';
 
 @Controller('chats')
 @UseGuards(JwtAuthGuard)
@@ -21,16 +23,16 @@ export class ChatsController {
    * GET /chats - Get all chats for current user
    */
   @Get()
-  async getUserChats(@Request() req) {
-    return this.chatsService.getUserChats(req.user._id);
+  async getUserChats(@User() user: UserPayload) {
+    return this.chatsService.getUserChats(user.sub);
   }
 
   /**
    * POST /chats - Create new chat
    */
   @Post()
-  async createChat(@Body() createChatDto: CreateChatDto, @Request() req) {
-    return this.chatsService.createChat(createChatDto, req.user._id);
+  async createChat(@Body() createChatDto: CreateChatDto, @User() user: UserPayload) {
+    return this.chatsService.createChat(createChatDto, user.sub);
   }
 
   /**
@@ -39,9 +41,9 @@ export class ChatsController {
    * Возвращает чат если существует, или null если не существует
    */
   @Post('find-or-check/:userId')
-  async findOrCheckChat(@Param('userId') otherUserId: string, @Request() req) {
+  async findOrCheckChat(@Param('userId') otherUserId: string, @User() user: UserPayload) {
     const chat = await this.chatsService.findExistingPersonalChat(
-      req.user._id,
+      user.sub,
       otherUserId,
     );
 
@@ -52,18 +54,28 @@ export class ChatsController {
   }
 
   /**
+   * PATCH /chats/:id/read - Mark chat as read (reset unread count)
+   * ВАЖНО: Должен быть ПЕРЕД /:id чтобы не конфликтовать
+   */
+  @Patch(':id/read')
+  async markChatAsRead(@Param('id') chatId: string, @User() user: UserPayload) {
+    await this.chatsService.resetUnreadCount(chatId, user.sub);
+    return { success: true };
+  }
+
+  /**
    * GET /chats/:id - Get chat by ID
    */
   @Get(':id')
-  async getChatById(@Param('id') chatId: string, @Request() req) {
-    return this.chatsService.getChatById(chatId, req.user._id);
+  async getChatById(@Param('id') chatId: string, @User() user: UserPayload) {
+    return this.chatsService.getChatById(chatId, user.sub);
   }
 
   /**
    * DELETE /chats/:id - Delete chat (soft delete)
    */
   @Delete(':id')
-  async deleteChat(@Param('id') chatId: string, @Request() req) {
-    return this.chatsService.deleteChat(chatId, req.user._id);
+  async deleteChat(@Param('id') chatId: string, @User() user: UserPayload) {
+    return this.chatsService.deleteChat(chatId, user.sub);
   }
 }

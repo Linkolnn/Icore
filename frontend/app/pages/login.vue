@@ -136,7 +136,6 @@ const handleLogin = async () => {
     })
   } catch (err) {
     // Ошибка уже в store.error
-    console.error('Login error:', err)
   }
 }
 
