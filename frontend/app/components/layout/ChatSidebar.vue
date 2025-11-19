@@ -24,9 +24,11 @@
             class="chat-item"
             @click="handleUserClick(user._id)"
           >
-            <img
-              :src="user.avatar || '/default-avatar.png'"
-              :alt="user.name"
+            <UiAvatar
+              :src="user.avatar"
+              :name="user.name"
+              :user-id="user._id"
+              size="lg"
               class="chat-item__avatar"
             />
             <div class="chat-item__content">
@@ -175,10 +177,6 @@ function handleUserClick(userId: string) {
   }
 
   &__avatar {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    object-fit: cover;
     flex-shrink: 0;
   }
 

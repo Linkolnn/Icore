@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
-import { useMessageService } from '~/services/api/message.service'
 import type { Message } from '~/types/message.types'
+import { useMessageService } from '~/services/api/message.service'
 
 interface MessagesState {
   messagesByChat: Record<string, Message[]>
@@ -37,8 +37,8 @@ export const useMessagesStore = defineStore('messages', () => {
     try {
       const response = await messageService.getMessages({ chatId, limit, skip: 0 })
 
-      // Store messages (reversed - oldest first for display)
-      messagesByChat.value[chatId] = response.messages.reverse()
+      // Backend now handles forwarded field properly
+      messagesByChat.value[chatId] = response.messages
       hasMore.value[chatId] = response.hasMore
     } catch (err: any) {
       error.value[chatId] = err.message || 'Failed to load messages'
@@ -65,11 +65,20 @@ export const useMessagesStore = defineStore('messages', () => {
 
       const response = await messageService.getMessages({ chatId, limit, skip })
 
-      // Prepend older messages
-      messagesByChat.value[chatId] = [
-        ...response.messages.reverse(),
-        ...currentMessages,
-      ]
+      // Only add messages if we got any
+      if (response.messages && response.messages.length > 0) {
+        // Filter out duplicates
+        const existingIds = new Set(currentMessages.map(m => m._id))
+        const newMessages = response.messages.filter(m => !existingIds.has(m._id))
+        
+        // Prepend only truly new messages
+        if (newMessages.length > 0) {
+          messagesByChat.value[chatId] = [
+            ...newMessages,
+            ...currentMessages,
+          ]
+        }
+      }
 
       hasMore.value[chatId] = response.hasMore
     } catch (err: any) {
@@ -81,7 +90,7 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   /**
-   * Add message with Optimistic UI
+   * Add message to chat
    * Used when sending a new message (before server confirmation)
    */
   function addMessage(chatId: string, message: Message) {
@@ -89,7 +98,7 @@ export const useMessagesStore = defineStore('messages', () => {
       messagesByChat.value[chatId] = []
     }
 
-    // Add to end (newest message)
+    // Backend now handles forwarded field properly
     messagesByChat.value[chatId].push(message)
   }
 
@@ -101,6 +110,7 @@ export const useMessagesStore = defineStore('messages', () => {
     const messages = messagesByChat.value[chatId]
     if (!messages) return
 
+    // Backend now handles forwarded field properly
     const index = messages.findIndex((m) => m._id === tempId)
     if (index !== -1) {
       messages[index] = realMessage
@@ -132,6 +142,13 @@ export const useMessagesStore = defineStore('messages', () => {
     if (index !== -1) {
       messages.splice(index, 1)
     }
+  }
+
+  /**
+   * Remove message (alias for deleteMessage)
+   */
+  function removeMessage(chatId: string, messageId: string) {
+    deleteMessage(chatId, messageId)
   }
 
   /**
@@ -185,6 +202,7 @@ export const useMessagesStore = defineStore('messages', () => {
     replaceMessage,
     markMessageFailed,
     deleteMessage,
+    removeMessage,
     clearMessages,
     clearAll,
     updateMessagesStatus,

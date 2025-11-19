@@ -28,6 +28,9 @@
         :key="chat._id"
         :chat="chat"
         :unread-count="chat.unreadCount || 0"
+        :selectable="selectable"
+        :selected="selectedChatId === chat._id"
+        @select="handleChatSelect"
       />
     </div>
   </section>
@@ -44,6 +47,26 @@ import { useSocket } from '~/composables/useSocket'
  * - Управление состояниями (loading, error, empty)
  * - Интеграция с ChatsStore
  */
+
+// ===== PROPS & EMITS =====
+
+interface Props {
+  search?: string
+  compact?: boolean
+  selectable?: boolean
+  selectedChatId?: string | null
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  search: '',
+  compact: false,
+  selectable: false,
+  selectedChatId: null
+})
+
+const emit = defineEmits<{
+  'chat-select': [chatId: string]
+}>()
 
 // ===== STORE =====
 
@@ -98,12 +121,9 @@ const socket = useSocket()
  * ВАЖНО: Регистрируем в setup, а не в onMounted
  */
 
-// Listen for new messages to update lastMessage
-socket.on('message:new', (message: any) => {
-  // Извлекаем chatId (может быть строкой или объектом с _id)
-  const chatId = typeof message.chat === 'string' ? message.chat : message.chat._id
-  chatsStore.updateLastMessageInList(chatId, message)
-})
+// NOTE: updateLastMessageInList теперь вызывается только в chat/[id].vue
+// чтобы избежать двойного увеличения счетчика непрочитанных
+// socket.on('message:new', ...) удален отсюда
 
 // Listen for new chats
 socket.on('chat:created', (chat: any) => {
@@ -135,6 +155,13 @@ onUnmounted(() => {
  */
 function handleRetry() {
   chatsStore.loadChats()
+}
+
+/**
+ * Обработчик выбора чата
+ */
+function handleChatSelect(chatId: string) {
+  emit('chat-select', chatId)
 }
 </script>
 

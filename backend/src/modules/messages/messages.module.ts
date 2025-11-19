@@ -4,11 +4,13 @@ import { MessagesService } from './messages.service';
 import { MessagesController } from './messages.controller';
 import { Message, MessageSchema } from './schemas/message.schema';
 import { ChatsModule } from '../chats/chats.module';
+import { WebsocketModule } from '../websocket/websocket.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Message.name, schema: MessageSchema }]),
     forwardRef(() => ChatsModule), // forwardRef для предотвращения циклических зависимостей
+    forwardRef(() => WebsocketModule), // forwardRef для доступа к WebsocketGateway
   ],
   controllers: [MessagesController],
   providers: [MessagesService],

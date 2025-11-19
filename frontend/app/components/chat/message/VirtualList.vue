@@ -25,7 +25,11 @@
             :data-index="item.virtualIndex"
             :data-message-id="item._id"
           >
-            <ChatMessageBubble :message="item" />
+            <ChatMessageBubble 
+              :message="item" 
+              @edit="handleEditMessage"
+              @delete="handleDeleteMessage"
+            />
           </div>
         </div>
       </div>
@@ -47,7 +51,11 @@
         v-if="showScrollToBottom"
         variant="icon"
         class="virtual-message-list__scroll-btn"
-        :class="{ 'virtual-message-list__scroll-btn--has-new': newMessagesCount > 0 }"
+        :class="{ 
+          'virtual-message-list__scroll-btn--has-new': newMessagesCount > 0,
+          'virtual-message-list__scroll-btn--auto-scroll': isInAutoScrollZone()
+        }"
+        :title="newMessagesCount > 0 ? `${newMessagesCount} новых сообщений` : 'Прокрутить вниз'"
         aria-label="Прокрутить вниз"
         @click="scrollToBottomSmooth"
       >
@@ -72,6 +80,9 @@ interface Props {
 }
 
 const props = defineProps<Props>()
+const emit = defineEmits<{
+  'edit-message': [message: Message]
+}>()
 const messagesStore = useMessagesStore()
 
 // Get messages for current chat
@@ -90,6 +101,16 @@ const containerHeight = ref(600)
 const showScrollToBottom = ref(false)
 const scrollDistanceThreshold = 300 // Порог в px для показа кнопки
 const newMessagesCount = ref(0) // Счетчик новых сообщений пока не внизу
+
+// Константы для автоскролла
+const AUTO_SCROLL_MESSAGE_COUNT = 2 // Количество последних сообщений для автоскролла
+const ESTIMATED_MESSAGE_HEIGHT = 60 // Примерная высота одного сообщения в px
+
+// Флаг для отслеживания первой загрузки в текущей сессии
+const isInitialLoad = ref(true)
+
+// Флаг для отслеживания загрузки старых сообщений
+const isLoadingOlder = ref(false)
 
 // Virtual scrolling setup
 const {
@@ -166,6 +187,8 @@ onMounted(async () => {
       scrollerRef.value.scrollTop = scrollerRef.value.scrollHeight
       checkScrollPosition()
     }
+    // После первого скролла отключаем флаг
+    isInitialLoad.value = false
   }, 300)
 })
 
@@ -182,13 +205,31 @@ function checkScrollPosition() {
   const { scrollTop, scrollHeight, clientHeight } = scrollerRef.value
   const distanceFromBottom = scrollHeight - scrollTop - clientHeight
   
-  // Показываем кнопку если пользователь поднялся выше порога
+  // Показываем кнопку если отдалились от низа
   showScrollToBottom.value = distanceFromBottom > scrollDistanceThreshold
   
-  // Если достигли низа - сбрасываем счетчик новых сообщений
-  if (distanceFromBottom < 100) {
+  // Если вернулись вниз - сбрасываем счетчик
+  if (distanceFromBottom < 50) {
     newMessagesCount.value = 0
   }
+}
+
+/**
+ * Проверяет, находится ли пользователь в зоне автоскролла
+ * (в пределах последних N сообщений)
+ */
+function isInAutoScrollZone(): boolean {
+  if (!scrollerRef.value) return true
+  
+  const { scrollTop, scrollHeight, clientHeight } = scrollerRef.value
+  const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+  
+  // Вычисляем примерную высоту последних N сообщений
+  const lastMessagesCount = Math.min(AUTO_SCROLL_MESSAGE_COUNT, messages.value.length)
+  const estimatedHeight = lastMessagesCount * ESTIMATED_MESSAGE_HEIGHT
+  
+  // Минимальный буфер для точной работы
+  return distanceFromBottom <= estimatedHeight + 10
 }
 
 /**
@@ -205,6 +246,9 @@ async function handleScroll(event: Event) {
   // Загружаем больше при скролле вверх (near top)
   if (target.scrollTop < 100 && hasMore.value && !loading.value) {
     const prevCount = messages.value.length
+    
+    // Устанавливаем флаг, что загружаем старые сообщения
+    isLoadingOlder.value = true
     
     await messagesStore.loadMoreMessages(props.chatId)
     
@@ -260,10 +304,40 @@ function scrollToBottomInstant() {
 }
 
 /**
- * Автоскролл при новых сообщениях
+ * Handle message edit - emit to parent
+ */
+function handleEditMessage(message: Message) {
+  emit('edit-message', message)
+}
+
+/**
+ * Handle message delete
+ */
+async function handleDeleteMessage(message: Message) {
+  try {
+    const config = useRuntimeConfig()
+    const authStore = useAuthStore()
+    
+    // Отправляем запрос на удаление
+    await $fetch(`/messages/${message._id}`, {
+      baseURL: config.public.apiBase,
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${authStore.accessToken}`
+      }
+    })
+    
+    // Полностью удаляем сообщение из списка
+    messagesStore.removeMessage(props.chatId, message._id)
+  } catch (error) {
+  }
+}
+
+/**
+ * Watch messages for auto-scroll on new message
  */
 watch(
-  () => messages.value,
+  messages,
   async (newMessages, oldMessages) => {
     if (!newMessages || newMessages.length === 0) return
     
@@ -274,18 +348,38 @@ watch(
       // Ждем обновления DOM
       await nextTick()
       
-      // Если это первая загрузка сообщений или начальная загрузка
-      if (oldLength === 0) {
-        // Даем время для рендеринга Virtual Scroll
-        setTimeout(() => {
-          scrollToBottomInstant()
-        }, 50)
+      // Если это загрузка старых сообщений (скролл вверх), НЕ скроллим вниз
+      if (isLoadingOlder.value) {
+        isLoadingOlder.value = false
+        return
+      }
+      
+      // Если это первая загрузка сообщений
+      if (oldLength === 0 || isInitialLoad.value) {
+        // Скроллим вниз только при первой загрузке в сессии
+        if (isInitialLoad.value) {
+          setTimeout(() => {
+            scrollToBottomInstant()
+            isInitialLoad.value = false
+          }, 50)
+        }
       } else if (scrollerRef.value) {
+        // Проверяем, добавились ли сообщения в конец (новые) или в начало (старые)
+        // Если последнее сообщение то же - значит загрузили старые
+        const oldLastMessage = oldMessages?.[oldLength - 1]
+        const newLastMessage = newMessages[newLength - 1]
+        
+        if (oldLastMessage && newLastMessage && oldLastMessage._id === newLastMessage._id) {
+          // Загрузили старые сообщения - не скроллим
+          return
+        }
+        
         // Проверяем последнее сообщение - если это наше, всегда скроллим вниз
-        const lastMessage = newMessages[newLength - 1]
         const authStore = useAuthStore()
-        const isOwnMessage = lastMessage?.sender?._id === authStore.user?._id || 
-                           lastMessage?.sender === authStore.user?._id
+        const senderId = typeof newLastMessage?.sender === 'string' 
+          ? newLastMessage.sender 
+          : newLastMessage?.sender?._id
+        const isOwnMessage = senderId === authStore.user?._id
         
         if (isOwnMessage) {
           // Если отправили сами - всегда скроллим вниз
@@ -293,16 +387,24 @@ watch(
             scrollToBottomSmooth()
           }, 50)
         } else {
-          // Чужое сообщение - проверяем позицию
-          const { scrollTop, scrollHeight, clientHeight } = scrollerRef.value
-          const isAtBottom = scrollHeight - scrollTop - clientHeight < 100
+          // Чужое сообщение - проверяем нахождение в зоне автоскролла
+          const inAutoScrollZone = isInAutoScrollZone()
           
-          if (isAtBottom) {
+          // Отладка: логируем расстояние от низа
+          if (scrollerRef.value) {
+            const { scrollTop, scrollHeight, clientHeight } = scrollerRef.value
+            const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+          }
+          
+          if (inAutoScrollZone) {
+            // Пользователь читает последние сообщения - автоматически скроллим к новым
+            // Это обеспечивает плавное чтение новых сообщений без необходимости скроллить вручную
             setTimeout(() => {
               scrollToBottomSmooth()
             }, 50)
           } else {
-            // Увеличиваем счетчик новых сообщений
+            // Пользователь читает историю - не мешаем
+            // Показываем счетчик новых сообщений и кнопку для быстрого перехода вниз
             const addedMessages = newLength - oldLength
             newMessagesCount.value += addedMessages
             checkScrollPosition()
@@ -406,6 +508,33 @@ defineExpose({
     
     &--has-new {
       animation: pulse 2s infinite;
+    }
+    
+    &--auto-scroll {
+      // Индикация активной зоны автоскролла
+      border: 2px solid rgba($accent-primary, 0.3);
+      
+      &::after {
+        content: '';
+        position: absolute;
+        top: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 2px 8px;
+        background: rgba($bg-primary, 0.9);
+        color: $text-secondary;
+        font-size: 10px;
+        border-radius: 4px;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      
+      &:hover::after {
+        opacity: 1;
+        content: 'Автоскролл активен';
+      }
     }
   }
 

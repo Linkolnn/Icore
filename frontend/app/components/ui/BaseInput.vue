@@ -109,6 +109,7 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
     color: $text-primary;
     box-shadow: $shadow-input;
     @include font-styles(16px, 400, 1.5);
+    font-family: 'Roboto', sans-serif; // Основной текст - Roboto
     @include transition;
 
     // Adjust padding when actions are present
@@ -117,17 +118,19 @@ const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}
     }
 
     &.has-right-action {
-      padding-right: 40px;
+      padding-right: 85px;
     }
 
     // Ensure text is always visible
     -webkit-text-fill-color: $text-primary;
     -webkit-opacity: 1;
+    opacity: 1;
 
     &::placeholder {
       color: $text-placeholder;
       font-size: 16px;
       line-height: 1.5;
+      font-family: '5mal6Lampen', sans-serif; // Placeholder - пиксельный шрифт
     }
 
     &:focus {

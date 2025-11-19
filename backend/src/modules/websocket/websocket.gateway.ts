@@ -168,15 +168,15 @@ export class WebsocketGateway
   @SubscribeMessage('message:send')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { chatId: string; text: string },
+    @MessageBody() data: { chatId: string; text: string; forwarded?: any; replyTo?: string },
   ) {
     try {
       const userId = client.data.userId;
-      const { chatId, text } = data;
+      const { chatId, text, forwarded, replyTo } = data;
 
       // Создаем сообщение через MessagesService (с проверками и sanitization)
       const message = await this.messagesService.create(
-        { chat: chatId, text },
+        { chat: chatId, text, forwarded, replyTo },
         userId,
       );
 
@@ -219,22 +219,114 @@ export class WebsocketGateway
   }
 
   /**
-   * message:typing - Индикатор набора
+   * message:delivered - Пометить сообщение как доставленное
    */
-  @SubscribeMessage('message:typing')
-  async handleTyping(
+  @SubscribeMessage('message:delivered')
+  async handleMessageDelivered(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { chatId: string; isTyping: boolean },
+    @MessageBody() data: { messageId: string },
   ) {
     try {
       const userId = client.data.userId;
-      const { chatId, isTyping } = data;
-
-      // Транслируем typing всем КРОМЕ отправителя
-      client.to(`chat-${chatId}`).emit('message:typing', {
-        chatId,
+      const updatedMessage = await this.messagesService.markAsDelivered(
+        data.messageId,
         userId,
-        isTyping,
+      );
+
+      if (updatedMessage) {
+        // Уведомляем отправителя о доставке
+        const senderId = updatedMessage.sender.toString();
+        this.server.to(`user-${senderId}`).emit('message:status', {
+          messageId: data.messageId,
+          status: 'delivered',
+          deliveredAt: updatedMessage.deliveredAt,
+        });
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * message:read - Пометить сообщение как прочитанное
+   */
+  @SubscribeMessage('message:read')
+  async handleMessageRead(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { messageId: string },
+  ) {
+    try {
+      const userId = client.data.userId;
+      const updatedMessage = await this.messagesService.markAsRead(
+        data.messageId,
+        userId,
+      );
+
+      if (updatedMessage) {
+        // Уведомляем отправителя о прочтении
+        const senderId = updatedMessage.sender.toString();
+        this.server.to(`user-${senderId}`).emit('message:status', {
+          messageId: data.messageId,
+          status: 'read',
+          readAt: updatedMessage.readAt,
+          readBy: userId,
+        });
+      }
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * typing:start - Начал печатать
+   */
+  @SubscribeMessage('typing:start')
+  async handleTypingStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string },
+  ) {
+    try {
+      const userId = client.data.userId;
+      
+      // Транслируем всем в чате кроме отправителя
+      client.to(`chat-${data.chatId}`).emit('typing:start', {
+        chatId: data.chatId,
+        userId,
+      });
+
+      // Автоматически останавливаем через 3 секунды
+      setTimeout(() => {
+        client.to(`chat-${data.chatId}`).emit('typing:stop', {
+          chatId: data.chatId,
+          userId,
+        });
+      }, 3000);
+
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * typing:stop - Перестал печатать
+   */
+  @SubscribeMessage('typing:stop')
+  async handleTypingStop(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string },
+  ) {
+    try {
+      const userId = client.data.userId;
+      
+      // Транслируем всем в чате кроме отправителя
+      client.to(`chat-${data.chatId}`).emit('typing:stop', {
+        chatId: data.chatId,
+        userId,
       });
 
       return { success: true };
@@ -267,25 +359,26 @@ export class WebsocketGateway
       }
 
       // Помечаем сообщения как прочитанные
-      const result = await this.messagesService.markChatMessagesAsRead(
+      const result = await this.messagesService.markChatAsRead(
         payload.chatId,
         userId,
       );
 
       // Если были обновлены сообщения, уведомляем отправителей
       if (result.updatedCount > 0) {
+        const messageIds = result.messages.map((m: any) => m._id.toString());
         // Отправляем событие ВСЕМ в комнате чата (включая читающего)
         this.server.to(`chat-${payload.chatId}`).emit('messages:read', {
           chatId: payload.chatId,
           readBy: userId,
-          messageIds: result.messageIds,
+          messageIds,
         });
       }
 
       return { 
         success: true, 
         updatedCount: result.updatedCount,
-        messageIds: result.messageIds,
+        messages: result.messages,
       };
     } catch (error) {
       return { success: false, error: error.message };
@@ -300,5 +393,53 @@ export class WebsocketGateway
     chat.participants.forEach((participantId: string) => {
       this.server.to(`user-${participantId}`).emit('chat:created', chat);
     });
+  }
+  
+  /**
+   * Эмитировать событие редактирования сообщения
+   * Отправляется всем участникам чата и в их персональные комнаты
+   */
+  async emitMessageEdited(message: any) {
+    const chatId = typeof message.chat === 'string' ? message.chat : message.chat._id;
+    
+    // Отправляем в комнату чата
+    this.server.to(`chat-${chatId}`).emit('message:edited', message);
+    
+    // Отправляем в персональные комнаты участников для обновления lastMessage
+    try {
+      const participants = await this.chatsService.getChatParticipants(chatId);
+      
+      participants.forEach((participantId: string) => {
+        this.server.to(`user-${participantId}`).emit('message:edited', message);
+      });
+    } catch (err) {
+    }
+  }
+  
+  /**
+   * Эмитировать событие удаления сообщения
+   * Отправляется всем участникам чата
+   */
+  async emitMessageDeleted(messageId: string, chatId: string, newLastMessage?: any) {
+    
+    // Подготавливаем данные для отправки
+    const eventData = { 
+      messageId, 
+      chatId,
+      newLastMessage: newLastMessage || null
+    };
+    
+    // Отправляем в комнату чата
+    this.server.to(`chat-${chatId}`).emit('message:deleted', eventData);
+    
+    // Отправляем в персональные комнаты участников для обновления lastMessage
+    try {
+      const participants = await this.chatsService.getChatParticipants(chatId);
+      
+      participants.forEach((participantId: string) => {
+        this.server.to(`user-${participantId}`).emit('message:deleted', eventData);
+      });
+    } catch (err) {
+    }
   }
 }

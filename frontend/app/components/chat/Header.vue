@@ -1,44 +1,108 @@
 <template>
   <header class="chat-header">
-    <!-- Back Button -->
-    <UiBaseButton
-      variant="icon"
-      aria-label="Назад"
-      @click="emit('back')"
-    >
-      <SvgoArrowIcon />
-    </UiBaseButton>
-
-    <!-- Avatar -->
-    <img :src="avatar" :alt="title" class="chat-header__avatar" />
-
-    <!-- Chat Info -->
-    <div class="chat-header__info">
-      <h1 class="chat-header__title">{{ title }}</h1>
-      <p class="chat-header__subtitle">{{ subtitle }}</p>
-    </div>
-
-    <!-- Actions -->
-    <div class="chat-header__actions">
+    <!-- Selection Mode -->
+    <template v-if="selectionStore.isSelectionMode">
+      <!-- Cancel Selection -->
       <UiBaseButton
         variant="icon"
-        aria-label="Позвонить"
-        @click="emit('call')"
+        aria-label="Отменить выделение"
+        @click="handleCancelSelection"
       >
-        <SvgoPhoneIcon />
+        <SvgoCloseIcon />
       </UiBaseButton>
+
+      <!-- Selected Count -->
+      <div class="chat-header__counter">
+        {{ selectionStore.selectedCount }}
+      </div>
+
+      <div class="chat-header__spacer"></div>
+
+      <!-- Selection Actions -->
+      <div class="chat-header__actions">
+        <UiBaseButton
+          v-if="selectionStore.canEdit"
+          variant="icon"
+          aria-label="Редактировать"
+          @click="handleEdit"
+        >
+          <SvgoEditIcon />
+        </UiBaseButton>
+        <UiBaseButton
+          variant="icon"
+          aria-label="Копировать"
+          @click="handleCopy"
+        >
+          <SvgoCopyIcon />
+        </UiBaseButton>
+        <UiBaseButton
+          variant="icon"
+          aria-label="Переслать"
+          @click="handleForward"
+        >
+          <SvgoForwardIcon />
+        </UiBaseButton>
+        <UiBaseButton
+          v-if="selectionStore.canDelete"
+          variant="icon"
+          aria-label="Удалить"
+          @click="handleDelete"
+        >
+          <SvgoDeleteIcon />
+        </UiBaseButton>
+      </div>
+    </template>
+
+    <!-- Normal Mode -->
+    <template v-else>
+      <!-- Back Button -->
       <UiBaseButton
         variant="icon"
-        aria-label="Меню"
-        @click="emit('menu')"
+        aria-label="Назад"
+        @click="emit('back')"
       >
-        <SvgoMenuIcon />
+        <SvgoArrowIcon />
       </UiBaseButton>
-    </div>
+
+      <!-- Avatar -->
+      <UiAvatar
+        :src="avatar"
+        :name="title"
+        :user-id="userId"
+        size="md"
+        class="chat-header__avatar"
+      />
+
+      <!-- Chat Info -->
+      <div class="chat-header__info">
+        <h1 class="chat-header__title">{{ title }}</h1>
+        <p class="chat-header__subtitle">{{ subtitle }}</p>
+      </div>
+
+      <!-- Actions -->
+      <div class="chat-header__actions">
+        <UiBaseButton
+          variant="icon"
+          aria-label="Позвонить"
+          @click="emit('call')"
+        >
+          <SvgoPhoneIcon />
+        </UiBaseButton>
+        <UiBaseButton
+          variant="icon"
+          aria-label="Меню"
+          @click="emit('menu')"
+        >
+          <SvgoMenuIcon />
+        </UiBaseButton>
+      </div>
+    </template>
   </header>
 </template>
 
 <script setup lang="ts">
+import { useSelectionStore } from '~/stores/selection'
+
 /**
  * ChatHeader Component
  *
@@ -46,6 +110,7 @@
  * - Back button (стрелка назад)
  * - Chat title + subtitle (название + инфо)
  * - Action buttons (телефон, меню)
+ * - Selection mode with action buttons
  *
  * Применяем Component Composition:
  * - UiBaseButton для всех кнопок
@@ -56,6 +121,7 @@ interface Props {
   title: string
   subtitle?: string
   avatar?: string
+  userId?: string
 }
 
 withDefaults(defineProps<Props>(), {
@@ -67,7 +133,37 @@ const emit = defineEmits<{
   'back': []
   'call': []
   'menu': []
+  'edit': []
+  'copy': []
+  'forward': []
+  'delete': []
 }>()
+
+const selectionStore = useSelectionStore()
+
+function handleCancelSelection() {
+  selectionStore.exitSelectionMode()
+}
+
+function handleEdit() {
+  emit('edit')
+  selectionStore.exitSelectionMode()
+}
+
+function handleCopy() {
+  emit('copy')
+  selectionStore.exitSelectionMode()
+}
+
+function handleForward() {
+  emit('forward')
+  // Don't exit selection mode for forward - might want to forward multiple
+}
+
+function handleDelete() {
+  emit('delete')
+  selectionStore.exitSelectionMode()
+}
 </script>
 
 <style lang="scss" scoped>
@@ -91,10 +187,6 @@ const emit = defineEmits<{
   border: none;
 
   &__avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    object-fit: cover;
     flex-shrink: 0;
   }
 
@@ -125,7 +217,23 @@ const emit = defineEmits<{
 
   &__actions {
     display: flex;
-    gap: 8px;
+    gap: 5px;
+    margin-left: auto;
+  }
+
+  &__counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    padding: 0 10px;
+    font-size: 18px;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  &__spacer {
+    flex-grow: 1;
   }
 }
 

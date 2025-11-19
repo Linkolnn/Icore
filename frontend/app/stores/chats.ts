@@ -59,7 +59,13 @@ export const useChatsStore = defineStore('chats', () => {
 
     try {
       const loadedChats = await chatService.getUserChats()
-      chats.value = loadedChats
+      // Нормализуем lastMessage для согласованности
+      const normalizedChats = loadedChats.map(chat => ({
+        ...chat,
+        // Если lastMessage пустой или с пустым текстом, устанавливаем undefined
+        lastMessage: chat.lastMessage && chat.lastMessage.text ? chat.lastMessage : undefined
+      }))
+      chats.value = normalizedChats
     } catch (error: any) {
       chatsError.value = error.message || 'Ошибка загрузки чатов'
       chats.value = []
@@ -198,21 +204,87 @@ export const useChatsStore = defineStore('chats', () => {
   }
 
   /**
-   * Сбросить счётчик непрочитанных для чата
-   * Вызывается при открытии чата
+   * Сбросить счетчик непрочитанных в 0
    */
   function resetUnreadCount(chatId: string) {
     const chatIndex = chats.value.findIndex(c => c._id === chatId)
     if (chatIndex !== -1) {
       const chat = chats.value[chatIndex]
-      if (!chat) return
-      
-      // Создаем обновленный объект для сохранения реактивности
-      const updatedChat: Chat = {
-        ...chat,
-        unreadCount: 0
+      if (chat) { // Проверка на undefined
+        const updatedChat = {
+          ...chat,
+          unreadCount: 0
+        }
+        chats.value[chatIndex] = updatedChat
       }
-      // Заменяем старый объект новым
+    }
+  }
+  
+  /**
+   * Обновить lastMessage без перемещения чата наверх
+   * Используется при редактировании последнего сообщения
+   */
+  function updateLastMessageText(chatId: string, message: any) {
+    const chatIndex = chats.value.findIndex(c => c._id === chatId)
+    if (chatIndex === -1) {
+      return
+    }
+    
+    const chat = chats.value[chatIndex]
+    if (!chat) {
+      return
+    }
+    
+    // Обновляем только если это действительно последнее сообщение
+    if (chat.lastMessage && '_id' in chat.lastMessage && chat.lastMessage._id === message._id) {
+      // Создаем обновленный объект для реактивности
+      const updatedChat = {
+        ...chat,
+        lastMessage: {
+          text: message.text,
+          sender: message.sender,
+          createdAt: message.createdAt,
+          _id: message._id
+        }
+      }
+      // Обновляем на том же месте без перемещения
+      chats.value[chatIndex] = updatedChat
+    } else {
+    }
+  }
+  
+  /**
+   * Очистить или обновить lastMessage при удалении
+   * Используется при удалении последнего сообщения
+   */
+  function clearOrUpdateLastMessage(chatId: string, newLastMessage: any | null) {
+    const chatIndex = chats.value.findIndex(c => c._id === chatId)
+    if (chatIndex === -1) {
+      return
+    }
+    
+    const chat = chats.value[chatIndex]
+    if (!chat) {
+      return
+    }
+    
+    // Создаем обновленный объект для реактивности
+    const updatedChat = {
+      ...chat,
+      lastMessage: newLastMessage ? {
+        text: newLastMessage.text,
+        sender: newLastMessage.sender,
+        createdAt: newLastMessage.createdAt,
+        _id: newLastMessage._id
+      } : undefined  // Используем undefined для соответствия типам TypeScript
+    }
+    
+    // Если есть новое последнее сообщение, перемещаем чат наверх
+    // Если нет - оставляем на месте
+    if (newLastMessage) {
+      chats.value.splice(chatIndex, 1)
+      chats.value.unshift(updatedChat)
+    } else {
       chats.value[chatIndex] = updatedChat
     }
   }
@@ -253,6 +325,8 @@ export const useChatsStore = defineStore('chats', () => {
     clearCurrentChat,
     clearChats,
     updateLastMessageInList,
+    updateLastMessageText,
+    clearOrUpdateLastMessage,
     addChatToList,
     resetUnreadCount,
   }

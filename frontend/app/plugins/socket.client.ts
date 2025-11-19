@@ -39,10 +39,13 @@ export default defineNuxtPlugin(() => {
       // Используем декодированный токен для получения userId
       if (token) {
         try {
-          const payload = JSON.parse(atob(token.split('.')[1]))
-          const userId = payload.sub
-          if (userId && socket) {
-            socket.emit('user:join', { userId })
+          const tokenParts = token.split('.')
+          if (tokenParts.length >= 2 && tokenParts[1]) {
+            const payload = JSON.parse(atob(tokenParts[1]))
+            const userId = payload.sub
+            if (userId && socket) {
+              socket.emit('user:join', { userId })
+            }
           }
         } catch (err) {
           // Silent error - token decode failed
@@ -56,6 +59,34 @@ export default defineNuxtPlugin(() => {
 
     socket.on('connect_error', (error) => {
       // Connection error handled silently
+    })
+    
+    // Global message listener for updating lastMessage and unreadCount
+    socket.on('message:new', (message: any) => {
+      const chatsStore = useChatsStore()
+      const messageChatId = typeof message.chat === 'string' ? message.chat : message.chat._id
+      
+      // Обновляем lastMessage для всех чатов (глобально)
+      // Счетчик непрочитанных обновится внутри updateLastMessageInList
+      chatsStore.updateLastMessageInList(messageChatId, message)
+    })
+    
+    // Listener for message edit - update lastMessage if it was edited
+    socket.on('message:edited', (message: any) => {
+      const chatsStore = useChatsStore()
+      const messageChatId = typeof message.chat === 'string' ? message.chat : message.chat._id
+      
+      // Используем специальный метод для обновления текста без перемещения чата
+      chatsStore.updateLastMessageText(messageChatId, message)
+    })
+    
+    // Listener for message delete - update lastMessage from event data
+    socket.on('message:deleted', async (data: { messageId: string, chatId: string, newLastMessage?: any }) => {
+      
+      const chatsStore = useChatsStore()
+      
+      // Всегда обновляем lastMessage из события - backend уже определил правильное значение
+      chatsStore.clearOrUpdateLastMessage(data.chatId, data.newLastMessage || null)
     })
 
     return socket

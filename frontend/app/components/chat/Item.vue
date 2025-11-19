@@ -1,9 +1,16 @@
 <template>
-  <article class="chat-item" @click="handleClick">
+  <article 
+    class="chat-item" 
+    :class="{ 'chat-item--selected': selected }"
+    @click="handleClick">
     <!-- Avatar -->
-    <div class="chat-item__avatar">
-      <div class="avatar-placeholder" />
-    </div>
+    <UiAvatar
+      :src="chatAvatar"
+      :name="chatName"
+      :user-id="chatUserId"
+      size="lg"
+      class="chat-item__avatar"
+    />
 
     <!-- Content -->
     <div class="chat-item__content">
@@ -19,7 +26,7 @@
       <div class="chat-item__footer">
         <p v-if="chat.lastMessage" class="chat-item__message">
           <span v-if="chat.type !== 'personal'" class="sender">{{ senderName }}:</span>
-          {{ chat.lastMessage.text || 'Сообщение' }}
+          {{ formatMessageText(chat.lastMessage.text) }}
         </p>
         <p v-else class="chat-item__message chat-item__message--empty">
           Нет сообщений
@@ -37,18 +44,26 @@
 <script setup lang="ts">
 import type { Chat } from '~/types/chat.types'
 import { formatTime } from '~/utils/date.utils'
-import { useChatName } from '~/composables/useChat'
+import { useChatName, useChatAvatar } from '~/composables/useChat'
 
 // ===== PROPS =====
 
 interface Props {
   chat: Chat
   unreadCount?: number
+  selectable?: boolean
+  selected?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  unreadCount: 0
+  unreadCount: 0,
+  selectable: false,
+  selected: false
 })
+
+const emit = defineEmits<{
+  select: [chatId: string]
+}>()
 
 // ===== COMPOSABLES =====
 
@@ -57,7 +72,29 @@ const props = withDefaults(defineProps<Props>(), {
  */
 const chatName = useChatName(toRef(props, 'chat'))
 
+/**
+ * Аватар чата (через composable)
+ */
+const chatAvatar = useChatAvatar(toRef(props, 'chat'))
+
 // ===== COMPUTED =====
+
+/**
+ * Get user/chat ID for consistent avatar colors
+ */
+const chatUserId = computed(() => {
+  const authStore = useAuthStore()
+  
+  // For personal chat, use other participant ID
+  if (props.chat.type === 'personal' && props.chat.participants.length > 0) {
+    const currentUserId = authStore.user?._id
+    const otherUser = props.chat.participants.find(p => p._id !== currentUserId)
+    return otherUser?._id || props.chat._id
+  }
+  
+  // For groups/channels, use chat ID
+  return props.chat._id
+})
 
 /**
  * Имя отправителя последнего сообщения
@@ -117,10 +154,25 @@ const formattedTime = computed(() => {
 
 /**
  * Обработка клика на чат
- * Переход на страницу чата
+ * В режиме выбора - эмитим событие
+ * В обычном режиме - переходим на страницу чата
  */
 function handleClick() {
-  navigateTo(`/chat/${props.chat._id}`)
+  if (props.selectable) {
+    emit('select', props.chat._id)
+  } else {
+    navigateTo(`/chat/${props.chat._id}`)
+  }
+}
+
+/**
+ * Форматирование текста сообщения для отображения в списке
+ * Заменяем переносы строк на пробелы
+ */
+function formatMessageText(text: string | undefined): string {
+  if (!text) return 'Сообщение'
+  // Заменяем переносы строк на пробелы для компактного отображения
+  return text.replace(/\n+/g, ' ').trim()
 }
 </script>
 
@@ -231,13 +283,20 @@ function handleClick() {
     @include font-styles(12px, 400, 1.4);
     border-radius: 50%;
   }
-}
-
-.avatar-placeholder {
-  width: 48px;
-  height: 48px;
-  background: $bg-primary;
-  box-shadow: $shadow-block;
-  border-radius: 50%;
+  
+  // Selected state
+  &--selected {
+    background: rgba($color-accent, 0.1);
+    
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: $color-accent;
+    }
+  }
 }
 </style>

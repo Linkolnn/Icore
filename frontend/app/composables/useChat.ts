@@ -85,7 +85,7 @@ export function useChatSubtitle(chat: MaybeRef<Chat | null>, previewUser?: any):
 /**
  * Получить аватар чата
  */
-export function useChatAvatar(chat: MaybeRef<Chat | null>, previewUser?: any): ComputedRef<string> {
+export function useChatAvatar(chat: MaybeRef<Chat | null>, previewUser?: any): ComputedRef<string | null> {
   const authStore = useAuthStore()
   const chatRef = toRef(chat)
 
@@ -93,20 +93,20 @@ export function useChatAvatar(chat: MaybeRef<Chat | null>, previewUser?: any): C
     // Preview mode: аватар пользователя
     if (previewUser && previewUser.value) {
       const user = unref(previewUser)
-      return user.avatar || '/default-avatar.png'
+      return user.avatar || null
     }
 
     const chatValue = chatRef.value
-    if (!chatValue) return '/default-avatar.png'
+    if (!chatValue) return null
 
     // Для personal чата - аватар собеседника
     if (chatValue.type === 'personal' && chatValue.participants.length > 0) {
       const currentUserId = authStore.user?._id
       const otherUser = chatValue.participants.find(p => p._id !== currentUserId)
-      return otherUser?.avatar || '/default-avatar.png'
+      return otherUser?.avatar || null
     }
 
     // Для группового чата - аватар чата
-    return chatValue.avatar || '/default-avatar.png'
+    return chatValue.avatar || null
   })
 }

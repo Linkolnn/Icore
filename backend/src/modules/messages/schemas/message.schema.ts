@@ -28,8 +28,59 @@ export class Message {
   })
   status: string;
 
+  // Для групповых чатов - кто прочитал
+  @Prop({
+    type: Map,
+    of: Date,
+    default: new Map(),
+  })
+  readBy: Map<string, Date>;
+
+  // Timestamps для статусов
+  @Prop({ type: Date })
+  deliveredAt: Date;
+
+  @Prop({ type: Date })
+  readAt: Date;
+
+  // Для редактирования
+  @Prop({ type: Date })
+  editedAt: Date;
+
+  @Prop({ type: Array, default: [] })
+  editHistory: Array<{
+    text: string;
+    editedAt: Date;
+  }>;
+
   @Prop({ default: false })
   isDeleted: boolean;
+
+  @Prop({ type: Date })
+  deletedAt: Date;
+
+  // Для ответов на сообщения
+  @Prop({ type: Types.ObjectId, ref: 'Message' })
+  replyTo?: Types.ObjectId;
+
+  // Для пересланных сообщений
+  @Prop({
+    type: {
+      from: { type: Types.ObjectId, ref: 'User' },
+      fromName: { type: String },  // Store the sender's name directly
+      originalChatId: { type: Types.ObjectId, ref: 'Chat' },
+      originalMessageId: { type: Types.ObjectId, ref: 'Message' },
+      originalCreatedAt: Date,
+    },
+    required: false,
+  })
+  forwarded?: {
+    from: Types.ObjectId;
+    fromName?: string;  // Store the sender's name directly
+    originalChatId?: Types.ObjectId;
+    originalMessageId?: Types.ObjectId;
+    originalCreatedAt?: Date;
+  };
 
   // timestamps: true автоматически добавляет createdAt и updatedAt
 }

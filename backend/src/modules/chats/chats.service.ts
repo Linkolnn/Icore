@@ -47,7 +47,8 @@ export class ChatsService {
     const result: any[] = [];
     for (const chat of chats) {
       // Populate sender используя User модель
-      if (chat.lastMessage?.sender) {
+      // Проверяем что lastMessage существует и не пустой
+      if (chat.lastMessage && chat.lastMessage.text && chat.lastMessage.sender) {
         const sender = await this.userModel
           .findById(chat.lastMessage.sender)
           .select('name username userId avatar')
@@ -56,6 +57,9 @@ export class ChatsService {
         if (sender) {
           chat.lastMessage.sender = sender as any;
         }
+      } else if (chat.lastMessage && !chat.lastMessage.text) {
+        // Если lastMessage существует но text пустой, удаляем его
+        delete (chat as any).lastMessage;
       }
 
       // Добавляем unreadCount для текущего пользователя
@@ -291,14 +295,24 @@ export class ChatsService {
    * Update lastMessage in chat
    */
   async updateLastMessage(chatId: string, message: any): Promise<void> {
+    // Если message пустой или без текста, устанавливаем null
+    if (!message || !message.text) {
+      await this.chatModel.findByIdAndUpdate(chatId, {
+        lastMessage: null,
+      });
+      return;
+    }
+    
     // Извлекаем sender ID правильно (может быть ObjectId, строкой или объектом)
-    let senderId;
-    if (typeof message.sender === 'string') {
-      senderId = new Types.ObjectId(message.sender);
-    } else if (message.sender._id) {
-      senderId = new Types.ObjectId(message.sender._id);
-    } else {
-      senderId = message.sender;
+    let senderId: any = null;
+    if (message.sender) {
+      if (typeof message.sender === 'string') {
+        senderId = new Types.ObjectId(message.sender);
+      } else if (message.sender._id) {
+        senderId = new Types.ObjectId(message.sender._id);
+      } else {
+        senderId = message.sender;
+      }
     }
     
     await this.chatModel.findByIdAndUpdate(chatId, {
@@ -308,5 +322,33 @@ export class ChatsService {
         createdAt: message.createdAt || new Date(),
       },
     });
+  }
+
+  /**
+   * Clear lastMessage in chat
+   */
+  async clearLastMessage(chatId: string): Promise<void> {
+    await this.chatModel.findByIdAndUpdate(chatId, {
+      lastMessage: null,
+    });
+  }
+
+  /**
+   * Get chat participants (for WebSocket events)
+   * Без проверки прав доступа - только для внутреннего использования
+   */
+  async getChatParticipants(chatId: string): Promise<string[]> {
+    const chat = await this.chatModel
+      .findById(chatId)
+      .select('participants')
+      .lean();
+    
+    if (!chat) {
+      return [];
+    }
+    
+    return chat.participants.map((p: any) => 
+      typeof p === 'string' ? p : p.toString()
+    );
   }
 }
