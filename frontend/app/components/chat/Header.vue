@@ -83,10 +83,17 @@
       <div class="chat-header__actions">
         <UiBaseButton
           variant="icon"
-          aria-label="Позвонить"
-          @click="emit('call')"
+          aria-label="Аудио звонок"
+          @click="handleAudioCall"
         >
-          <SvgoPhoneIcon />
+          <Icon name="material-symbols:call" />
+        </UiBaseButton>
+        <UiBaseButton
+          variant="icon"
+          aria-label="Видео звонок"
+          @click="handleVideoCall"
+        >
+          <Icon name="material-symbols:videocam" />
         </UiBaseButton>
         <UiBaseButton
           variant="icon"
@@ -131,7 +138,7 @@ withDefaults(defineProps<Props>(), {
 
 const emit = defineEmits<{
   'back': []
-  'call': []
+  'call': [type: 'audio' | 'video']
   'menu': []
   'edit': []
   'copy': []
@@ -143,6 +150,14 @@ const selectionStore = useSelectionStore()
 
 function handleCancelSelection() {
   selectionStore.exitSelectionMode()
+}
+
+function handleAudioCall() {
+  emit('call', 'audio')
+}
+
+function handleVideoCall() {
+  emit('call', 'video')
 }
 
 function handleEdit() {

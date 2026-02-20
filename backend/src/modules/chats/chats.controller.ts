@@ -10,6 +10,13 @@ import {
 } from '@nestjs/common';
 import { ChatsService } from './chats.service';
 import { CreateChatDto } from './dto/create-chat.dto';
+import {
+  CreateGroupDto,
+  AddMembersDto,
+  UpdateMemberRoleDto,
+  UpdateGroupInfoDto,
+  GenerateInviteLinkDto,
+} from './dto/create-group.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { User } from '../auth/decorators/user.decorator';
 import type { UserPayload } from '../auth/interfaces/user-payload.interface';
@@ -33,6 +40,22 @@ export class ChatsController {
   @Post()
   async createChat(@Body() createChatDto: CreateChatDto, @User() user: UserPayload) {
     return this.chatsService.createChat(createChatDto, user.sub);
+  }
+
+  /**
+   * POST /chats/group - Create new group chat
+   */
+  @Post('group')
+  async createGroupChat(@Body() createGroupDto: CreateGroupDto, @User() user: UserPayload) {
+    return this.chatsService.createGroupChat(createGroupDto, user.sub);
+  }
+
+  /**
+   * POST /chats/join/:token - Join chat by invite link
+   */
+  @Post('join/:token')
+  async joinByInviteLink(@Param('token') token: string, @User() user: UserPayload) {
+    return this.chatsService.joinByInviteLink(token, user.sub);
   }
 
   /**
@@ -60,6 +83,76 @@ export class ChatsController {
   @Patch(':id/read')
   async markChatAsRead(@Param('id') chatId: string, @User() user: UserPayload) {
     await this.chatsService.resetUnreadCount(chatId, user.sub);
+    return { success: true };
+  }
+
+  /**
+   * POST /chats/:id/members - Add members to group chat
+   */
+  @Post(':id/members')
+  async addMembers(
+    @Param('id') chatId: string,
+    @Body() dto: AddMembersDto,
+    @User() user: UserPayload,
+  ) {
+    return this.chatsService.addMembers(chatId, dto, user.sub);
+  }
+
+  /**
+   * DELETE /chats/:id/members/:memberId - Remove member from group chat
+   */
+  @Delete(':id/members/:memberId')
+  async removeMember(
+    @Param('id') chatId: string,
+    @Param('memberId') memberId: string,
+    @User() user: UserPayload,
+  ) {
+    return this.chatsService.removeMember(chatId, memberId, user.sub);
+  }
+
+  /**
+   * PATCH /chats/:id/members/:memberId/role - Update member role
+   */
+  @Patch(':id/members/:memberId/role')
+  async updateMemberRole(
+    @Param('id') chatId: string,
+    @Param('memberId') memberId: string,
+    @Body() dto: UpdateMemberRoleDto,
+    @User() user: UserPayload,
+  ) {
+    return this.chatsService.updateMemberRole(chatId, memberId, dto, user.sub);
+  }
+
+  /**
+   * PATCH /chats/:id/info - Update group info
+   */
+  @Patch(':id/info')
+  async updateGroupInfo(
+    @Param('id') chatId: string,
+    @Body() dto: UpdateGroupInfoDto,
+    @User() user: UserPayload,
+  ) {
+    return this.chatsService.updateGroupInfo(chatId, dto, user.sub);
+  }
+
+  /**
+   * POST /chats/:id/invite-link - Generate invite link
+   */
+  @Post(':id/invite-link')
+  async generateInviteLink(
+    @Param('id') chatId: string,
+    @Body() dto: GenerateInviteLinkDto,
+    @User() user: UserPayload,
+  ) {
+    return this.chatsService.generateInviteLink(chatId, dto, user.sub);
+  }
+
+  /**
+   * POST /chats/:id/leave - Leave group chat
+   */
+  @Post(':id/leave')
+  async leaveGroup(@Param('id') chatId: string, @User() user: UserPayload) {
+    await this.chatsService.leaveGroup(chatId, user.sub);
     return { success: true };
   }
 

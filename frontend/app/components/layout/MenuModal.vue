@@ -15,21 +15,33 @@
       </header>
 
       <nav class="menu-nav">
+        <button class="menu-nav__button" @click="openCreateGroup">
+          <Icon name="material-symbols:group-add" class="button-icon" />
+          <span class="button-text">Создать беседу</span>
+        </button>
         <button class="menu-nav__button" @click="goToProfile">
-          <span class="button-icon">👤</span>
+          <Icon name="material-symbols:person-outline" class="button-icon" />
           <span class="button-text">Профиль</span>
         </button>
         <button class="menu-nav__button" @click="goToSettings">
-          <span class="button-icon">⚙️</span>
+          <Icon name="material-symbols:settings-outline" class="button-icon" />
           <span class="button-text">Настройки</span>
         </button>
         <button class="menu-nav__button menu-nav__button--danger" @click="handleLogout">
-          <span class="button-icon">🚪</span>
+          <Icon name="material-symbols:logout" class="button-icon" />
           <span class="button-text">Выйти</span>
         </button>
       </nav>
     </div>
   </div>
+
+  <!-- Create Group Modal -->
+  <ChatCreateGroupModal
+    v-if="isCreateGroupOpen"
+    :is-open="isCreateGroupOpen"
+    @close="isCreateGroupOpen = false"
+    @created="handleGroupCreated"
+  />
 </template>
 
 <script setup lang="ts">
@@ -62,8 +74,20 @@ const emit = defineEmits<{
 const router = useRouter()
 const authStore = useAuthStore()
 
+const isCreateGroupOpen = ref(false)
+
 const close = () => {
   emit('update:modelValue', false)
+}
+
+const openCreateGroup = () => {
+  isCreateGroupOpen.value = true
+  close()
+}
+
+const handleGroupCreated = (chat: any) => {
+  isCreateGroupOpen.value = false
+  router.push(`/chat/${chat._id}`)
 }
 
 const goToProfile = () => {
@@ -188,8 +212,10 @@ const handleEscape = (e: KeyboardEvent) => {
   }
 
   .button-icon {
-    font-size: 20px;
+    width: 20px;
+    height: 20px;
     flex-shrink: 0;
+    color: white;
   }
 
   .button-text {

@@ -442,4 +442,114 @@ export class WebsocketGateway
     } catch (err) {
     }
   }
+
+  /**
+   * Эмитировать событие создания группы
+   */
+  emitGroupCreated(group: any) {
+    // Отправляем каждому участнику в его персональную комнату
+    group.participants.forEach((participant: any) => {
+      const userId = participant.user?._id || participant.user || participant;
+      this.server.to(`user-${userId}`).emit('group:created', group);
+    });
+  }
+
+  /**
+   * Эмитировать событие добавления участника
+   */
+  emitMemberAdded(chatId: string, newMembers: any[]) {
+    const event = {
+      chatId,
+      newMembers,
+      timestamp: new Date(),
+    };
+
+    // Отправляем всем участникам чата
+    this.server.to(`chat-${chatId}`).emit('group:member-added', event);
+
+    // Отправляем новым участникам в персональные комнаты
+    newMembers.forEach((member: any) => {
+      const userId = member.user?._id || member.user || member;
+      this.server.to(`user-${userId}`).emit('group:joined', { chatId });
+    });
+  }
+
+  /**
+   * Эмитировать событие удаления участника
+   */
+  emitMemberRemoved(chatId: string, removedUserId: string, isLeave: boolean = false) {
+    const event = {
+      chatId,
+      removedUserId,
+      isLeave,
+      timestamp: new Date(),
+    };
+
+    // Отправляем всем участникам чата
+    this.server.to(`chat-${chatId}`).emit('group:member-removed', event);
+
+    // Отправляем удаленному участнику
+    if (!isLeave) {
+      this.server.to(`user-${removedUserId}`).emit('group:removed', { chatId });
+    }
+  }
+
+  /**
+   * Эмитировать событие изменения роли участника
+   */
+  emitRoleChanged(chatId: string, userId: string, newRole: string) {
+    const event = {
+      chatId,
+      userId,
+      newRole,
+      timestamp: new Date(),
+    };
+
+    // Отправляем всем участникам чата
+    this.server.to(`chat-${chatId}`).emit('group:role-changed', event);
+  }
+
+  /**
+   * Эмитировать событие обновления информации о группе
+   */
+  emitGroupInfoUpdated(chatId: string, updates: any) {
+    const event = {
+      chatId,
+      updates,
+      timestamp: new Date(),
+    };
+
+    // Отправляем всем участникам чата
+    this.server.to(`chat-${chatId}`).emit('group:info-updated', event);
+  }
+
+  /**
+   * Обработчик: создание группы
+   * Альтернативный способ создания группы через WebSocket
+   */
+  @SubscribeMessage('group:create')
+  async handleGroupCreate(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: any,
+  ) {
+    try {
+      const userId = client.data.userId;
+      if (!userId) {
+        return { success: false, error: 'Unauthorized' };
+      }
+
+      // Создаем группу через сервис
+      const group = await this.chatsService.createGroupChat(data, userId);
+
+      // Присоединяем создателя к комнате чата
+      client.join(`chat-${(group as any)._id}`);
+
+      // Оповещаем всех участников
+      this.emitGroupCreated(group);
+
+      return { success: true, group };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
 }

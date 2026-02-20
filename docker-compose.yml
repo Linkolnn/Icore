@@ -2,15 +2,11 @@ version: '3.8'
 
 services:
   mongodb:
-    image: mongo:7
+    image: mongo:6
     container_name: icore-mongodb
     ports:
       - "27017:27017"
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: admin
-      MONGO_INITDB_ROOT_PASSWORD: password123
-    volumes:
-      - mongodb_data:/data/db
+    command: mongod --nojournal
     networks:
       - icore-network
 
@@ -34,7 +30,7 @@ services:
     environment:
       NODE_ENV: development
       PORT: 3001
-      MONGODB_URI: mongodb://admin:password123@mongodb:27017/icore?authSource=admin
+      MONGODB_URI: mongodb://mongodb:27017/icore
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
@@ -70,7 +66,6 @@ services:
     command: yarn dev
 
 volumes:
-  mongodb_data:
   redis_data:
 
 networks:

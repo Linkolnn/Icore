@@ -20,19 +20,110 @@ export class Chat {
   type: string;
 
   /**
-   * Array of user IDs participating in the chat
+   * Array of participants with roles and permissions
+   * For personal chats - simple array of user IDs
+   * For groups/channels - objects with user, role, permissions
    */
   @Prop({
-    type: [{ type: MongooseSchema.Types.ObjectId, ref: 'User' }],
+    type: [
+      {
+        user: { type: MongooseSchema.Types.ObjectId, ref: 'User', required: true },
+        role: { type: String, enum: ['owner', 'admin', 'member'], default: 'member' },
+        joinedAt: { type: Date, default: Date.now },
+        permissions: {
+          canAddMembers: { type: Boolean, default: false },
+          canRemoveMembers: { type: Boolean, default: false },
+          canEditInfo: { type: Boolean, default: false },
+          canDeleteMessages: { type: Boolean, default: false },
+          canPinMessages: { type: Boolean, default: false },
+          canStartCall: { type: Boolean, default: true },
+        },
+      },
+    ],
     required: true,
   })
-  participants: Types.ObjectId[];
+  participants: Array<{
+    user: Types.ObjectId;
+    role?: 'owner' | 'admin' | 'member';
+    joinedAt?: Date;
+    permissions?: {
+      canAddMembers?: boolean;
+      canRemoveMembers?: boolean;
+      canEditInfo?: boolean;
+      canDeleteMessages?: boolean;
+      canPinMessages?: boolean;
+      canStartCall?: boolean;
+    };
+  }>;
 
   /**
    * Chat name (optional, mainly for groups/channels)
    */
-  @Prop({ type: String, required: false })
+  @Prop({ type: String, required: false, maxlength: 100 })
   name?: string;
+
+  /**
+   * Chat description (for groups/channels)
+   */
+  @Prop({ type: String, required: false, maxlength: 500 })
+  description?: string;
+
+  /**
+   * Chat avatar URL (for groups/channels)
+   */
+  @Prop({ type: String, required: false })
+  avatar?: string;
+
+  /**
+   * Maximum number of participants allowed
+   */
+  @Prop({ type: Number, default: 100 })
+  maxMembers: number;
+
+  /**
+   * Invite link for joining the group
+   */
+  @Prop({
+    type: {
+      token: String,
+      expiresAt: Date,
+      maxUses: Number,
+      uses: { type: Number, default: 0 },
+    },
+    required: false,
+  })
+  inviteLink?: {
+    token: string;
+    expiresAt: Date;
+    maxUses?: number;
+    uses: number;
+  };
+
+  /**
+   * Pinned messages IDs
+   */
+  @Prop({
+    type: [{ type: MongooseSchema.Types.ObjectId, ref: 'Message' }],
+    default: [],
+  })
+  pinnedMessages: Types.ObjectId[];
+
+  /**
+   * Settings for the chat
+   */
+  @Prop({
+    type: {
+      muteNotifications: { type: Boolean, default: false },
+      allowJoinByLink: { type: Boolean, default: true },
+      approveNewMembers: { type: Boolean, default: false },
+    },
+    required: false,
+  })
+  settings?: {
+    muteNotifications: boolean;
+    allowJoinByLink: boolean;
+    approveNewMembers: boolean;
+  };
 
   /**
    * Last message in the chat (for sorting and preview)

@@ -5,7 +5,7 @@ export default defineNuxtConfig({
 
   ssr: false,
   
-  modules: ['@pinia/nuxt', 'nuxt-svgo'],
+  modules: ['@pinia/nuxt', 'nuxt-svgo', 'nuxt-icon'],
   
   css: [
     '@/assets/styles/main.scss',

@@ -6,8 +6,7 @@ import { UsersModule } from './modules/users/users.module';
 import { MessagesModule } from './modules/messages/messages.module';
 import { ChatsModule } from './modules/chats/chats.module';
 import { WebsocketModule } from './modules/websocket/websocket.module';
-import { WebrtcModule } from './modules/webrtc/webrtc.module';
-import { EncryptionModule } from './modules/encryption/encryption.module';
+import { WebRTCModule } from './modules/webrtc/webrtc.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule } from '@nestjs/config';
 
@@ -22,8 +21,7 @@ import { ConfigModule } from '@nestjs/config';
     MessagesModule,
     ChatsModule,
     WebsocketModule,
-    WebrtcModule,
-    EncryptionModule
+    WebRTCModule
   ],
   controllers: [AppController],
   providers: [AppService],
